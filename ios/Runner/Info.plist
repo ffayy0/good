@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleDisplayName</key>
+    <string>Mut6</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>mut6</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>$(FLUTTER_BUILD_NAME)</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>CFBundleVersion</key>
+    <string>$(FLUTTER_BUILD_NUMBER)</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+    <key>UIMainStoryboardFile</key>
+    <string>Main</string>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+
+    <!-- أذونات الوصول إلى الملفات -->
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>نحتاج إلى الوصول إلى الملفات لتحميل البيانات.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>نحتاج إلى الوصول إلى الملفات لتحميل البيانات.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>تحتاج إلى الوصول إلى مكتبة الصور لتحميل الملف.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>تحتاج إلى الوصول إلى الميكروفون لأغراض معينة.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+<string>نحتاج إلى الوصول إلى مكتبة الصور لتحميل الملف.</string>
+<key>NSDocumentsFolderUsageDescription</key>
+<string>نحتاج إلى الوصول إلى الملفات لتحميل البيانات.</string>
+<key>NSCameraUsageDescription</key>
+<string>نحتاج إلى الوصول إلى الكاميرا للمسح</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>نحتاج إلى الوصول لموقعك لعرض الخريطة بدقة</string>
+<key>NSLocationAlwaysUsageDescription</key>
+<string>نحتاج إلى الوصول الدائم لموقعك لتحسين تجربة التطبيق</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>نحتاج إلى الوصول إلى موقعك لاختيار موقع المدرسة</string>
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>نحتاج إلى موقعك لتحديد موقع المدرسة</string>
+    <!-- أذونات الوصول إلى المكتبة -->
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>نحتاج إذن للوصول إلى مكتبة الصور لحفظ الصورة في المعرض.</string>
+
+    <!-- أذونات الوصول إلى الكاميرا (اختياري إذا كنت تستخدم الكاميرا) -->
+    <key>NSCameraUsageDescription</key>
+    <string>نحتاج إذن للوصول إلى الكاميرا لالتقاط الصور.</string>
+
+    <!-- أذونات حفظ الصور (اختياري إذا كنت تستخدم حفظ الصور) -->
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>نحتاج إذن للوصول إلى المعرض لحفظ الصورة.</string>
+
+</dict>
+</plist>
