@@ -136,18 +136,7 @@ class _StudyStageScreenState extends State<StudyStageScreen>
                 );
               },
             ),
-            if (isTimerFinished)
-              Padding(
-                padding: const EdgeInsets.only(top: 20),
-                child: Text(
-                  "انتهت مدة الخروج!",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+            // تم حذف النص "انتهت مدة الخروج!"
           ],
         ),
       ),

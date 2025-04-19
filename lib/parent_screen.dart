@@ -113,6 +113,7 @@ class GuardianScreen extends StatelessWidget {
                 );
               },
             ),
+
             const SizedBox(height: 10),
             CustomButton(
               title: "الطلبات السابقة",
@@ -120,7 +121,11 @@ class GuardianScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PreviousRequestsScreen(),
+                    builder:
+                        (context) => ChildrenScreen(
+                          guardianId: 'guardian_id_value', // تمرير المعرف هنا
+                          serviceType: 'attendance', // نوع الخدمة
+                        ),
                   ),
                 );
               },

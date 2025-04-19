@@ -6,6 +6,7 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 
 import 'widgets/custom_button.dart';
+import 'widgets/custom_button_auth.dart';
 import 'widgets/custom_text_field.dart';
 
 void main() async {

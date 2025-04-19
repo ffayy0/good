@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import '../widgets/custom_button_auth.dart';
+import 'package:mut6/widgets/custom_button.dart';
+
+import 'widgets/custom_button_auth.dart';
 
 class SchoolScreen extends StatelessWidget {
   final String schoolName;

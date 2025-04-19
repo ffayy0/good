@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:mut6/alert_dialog_helper.dart';
 
 class RequestHelpScreen extends StatefulWidget {
@@ -18,16 +21,127 @@ class RequestHelpScreen extends StatefulWidget {
 }
 
 class _RequestHelpScreenState extends State<RequestHelpScreen> {
-  LatLng _selectedLocation = LatLng(24.5247, 39.5692); // الموقع الافتراضي
+  LatLng? _parentLocation; // موقع ولي الأمر
+  LatLng? _schoolLocation; // موقع المدرسة
+  LatLng _mapCenter = LatLng(24.5247, 39.5692); // مركز الخريطة الافتراضي
   MapController _mapController = MapController();
 
-  void _showConfirmationDialog() {
-    final LatLng schoolLocation = LatLng(24.5240, 39.5695); // موقع المدرسة
-    final double distance = Distance().as(
+  @override
+  void initState() {
+    super.initState();
+    print("بدء تهيئة الموقع...");
+    _initializeLocation();
+  }
+
+  Future<void> _initializeLocation() async {
+    try {
+      // طلب صلاحية الموقع
+      print("طلب صلاحية الموقع...");
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        print("صلاحية الموقع مرفوضة، طلب الصلاحية مرة أخرى...");
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          print("تم رفض صلاحية الموقع من قبل المستخدم.");
+          return;
+        }
+      }
+
+      // الحصول على موقع ولي الأمر
+      print("جلب موقع ولي الأمر...");
+      Position position = await Geolocator.getCurrentPosition(
+        locationSettings: AppleSettings(
+          accuracy: LocationAccuracy.best,
+          activityType: ActivityType.fitness,
+          pauseLocationUpdatesAutomatically: true,
+          allowBackgroundLocationUpdates: false,
+        ),
+      );
+      _parentLocation = LatLng(position.latitude, position.longitude);
+      print("موقع ولي الأمر: $_parentLocation");
+
+      // جلب موقع المدرسة من Firestore
+      print("جلب موقع المدرسة من Firestore...");
+      DocumentSnapshot doc =
+          await FirebaseFirestore.instance
+              .collection('schools')
+              .doc('1nopwBHqOJSVawb8kXD0Y45R0Iv1')
+              .get();
+
+      if (!doc.exists) {
+        print(
+          "خطأ: الوثيقة '1nopwBHqOJSVawb8kXD0Y45R0Iv1' غير موجودة في Firestore.",
+        );
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text("خطأ"),
+                content: const Text(
+                  "لم يتم العثور على موقع المدرسة في قاعدة البيانات.",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text("حسناً"),
+                  ),
+                ],
+              ),
+        );
+        return;
+      }
+
+      // استخراج الموقع من حقل schoolLocation
+      String schoolLocationStr = doc.get('schoolLocation');
+      List<String> coordinates = schoolLocationStr.split(',');
+      double lat = double.parse(coordinates[0]);
+      double lng = double.parse(coordinates[1]);
+      _schoolLocation = LatLng(lat, lng);
+      print("موقع المدرسة: $_schoolLocation");
+
+      // تحديث مركز الخريطة إلى موقع ولي الأمر
+      setState(() {
+        _mapCenter = _parentLocation!;
+      });
+      print("تم تحديث مركز الخريطة بنجاح.");
+    } catch (e) {
+      print('خطأ أثناء جلب الموقع: $e');
+    }
+  }
+
+  void _checkDistance() {
+    if (_parentLocation == null || _schoolLocation == null) {
+      print("خطأ: موقع ولي الأمر أو المدرسة غير متوفر.");
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text("خطأ"),
+              content: const Text(
+                "لم يتم تحديد موقعك أو موقع المدرسة بشكل صحيح.",
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text("حسناً"),
+                ),
+              ],
+            ),
+      );
+      return;
+    }
+
+    // حساب المسافة بين ولي الأمر والمدرسة
+    double distance = Distance().as(
       LengthUnit.Meter,
-      _selectedLocation,
-      schoolLocation,
+      _parentLocation!,
+      _schoolLocation!,
     );
+    print("المسافة بين ولي الأمر والمدرسة: $distance متر");
 
     if (distance <= 500) {
       Navigator.push(
@@ -77,7 +191,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
             const Align(
               alignment: Alignment.centerRight,
               child: Text(
-                'الرجاء تحديد موقعك على الخريطه',
+                'موقعك الحالي سيتم التحقق منه تلقائيًا',
                 style: TextStyle(
                   fontSize: 18,
                   color: Color.fromARGB(255, 1, 113, 189),
@@ -92,7 +206,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
                 borderRadius: BorderRadius.circular(15),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withAlpha((0.1 * 255).toInt()),
                     blurRadius: 5,
                     spreadRadius: 2,
                   ),
@@ -103,13 +217,8 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
                 child: FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
-                    initialCenter: _selectedLocation,
+                    initialCenter: _mapCenter,
                     initialZoom: 13.0,
-                    onTap: (tapPosition, point) {
-                      setState(() {
-                        _selectedLocation = point;
-                      });
-                    },
                     minZoom: 1.0,
                     maxZoom: 18.0,
                   ),
@@ -119,18 +228,19 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
                           'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                       subdomains: ['a', 'b', 'c'],
                     ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: _selectedLocation,
-                          child: const Icon(
-                            Icons.location_pin,
-                            color: Colors.red,
-                            size: 40,
+                    if (_parentLocation != null)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _parentLocation!,
+                            child: const Icon(
+                              Icons.person_pin_circle,
+                              color: Colors.blue,
+                              size: 40,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -140,7 +250,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
               width: 150,
               height: 50,
               child: ElevatedButton(
-                onPressed: _showConfirmationDialog,
+                onPressed: _checkDistance,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 1, 113, 189),
                   shape: RoundedRectangleBorder(

@@ -12,32 +12,12 @@ class AttendanceScreen extends StatelessWidget {
     required this.guardianId, // إضافة guardianId كمعلمة إجبارية
   });
 
-  final List<Map<String, dynamic>> attendanceRecords = [
-    {"day": "الأحد", "date": "٣/١", "status": "حاضر", "color": Colors.green},
-    {
-      "day": "الاثنين",
-      "date": "٣/٢",
-      "status": "متأخر",
-      "color": Colors.orange,
-    },
-    {"day": "الثلاثاء", "date": "٣/٣", "status": "حاضر", "color": Colors.green},
-    {"day": "الأربعاء", "date": "٣/٤", "status": "غائب", "color": Colors.red},
-    {"day": "الخميس", "date": "٣/٥", "status": "حاضر", "color": Colors.green},
-    {"day": "الأحد", "date": "٣/٨", "status": "حاضر", "color": Colors.green},
-    {"day": "الاثنين", "date": "٣/٩", "status": "حاضر", "color": Colors.green},
-    {
-      "day": "الثلاثاء",
-      "date": "٣/١٠",
-      "status": "حاضر",
-      "color": Colors.green,
-    },
-    {
-      "day": "الأربعاء",
-      "date": "٣/١١",
-      "status": "حاضر",
-      "color": Colors.green,
-    },
-  ];
+  // خريطة لتحويل الأسماء الإنجليزية للمرحلة إلى أرقام
+  final Map<String, String> stageMap = {
+    "first": "1",
+    "second": "2",
+    "third": "3",
+  };
 
   Future<Map<String, dynamic>?> _fetchStudentData(String studentId) async {
     try {
@@ -57,7 +37,8 @@ class AttendanceScreen extends StatelessWidget {
           if (snapshot.exists) {
             return {
               "name": snapshot['name'],
-              "schoolClass": "$schoolClass/$stage", // الصف الدراسي
+              "schoolClass":
+                  "${schoolClass}/${stageMap[stage]}", // تحويل المرحلة إلى رقم
             };
           }
         }
@@ -67,6 +48,48 @@ class AttendanceScreen extends StatelessWidget {
     } catch (e) {
       print("Error fetching student data: $e");
       return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchAttendanceRecords(
+    String studentId,
+  ) async {
+    try {
+      // الحصول على سجل الحضور الخاص بالطالب
+      final attendanceSnapshot =
+          await FirebaseFirestore.instance
+              .collection('students') // جمع سجلات الحضور
+              .doc(studentId) // معرف الطالب
+              .collection('attendance') // مجموعة الحضور
+              .orderBy('date', descending: true) // ترتيب حسب التاريخ
+              .get();
+
+      // تحويل البيانات إلى قائمة
+      return attendanceSnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          "day": data['day'],
+          "date": data['date'],
+          "status": data['status'],
+          "color": _getStatusColor(data['status']),
+        };
+      }).toList();
+    } catch (e) {
+      print("Error fetching attendance records: $e");
+      return [];
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case "حاضر":
+        return Colors.green;
+      case "متأخر":
+        return Colors.orange;
+      case "غائب":
+        return Colors.red;
+      default:
+        return Colors.grey;
     }
   }
 
@@ -142,89 +165,77 @@ class AttendanceScreen extends StatelessWidget {
               },
             ),
             const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        "الحالة",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        "اليوم / التاريخ",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(thickness: 1),
-                  Column(
-                    children:
-                        attendanceRecords.map((record) {
-                          return InkWell(
-                            onTap:
-                                record["status"] == "غائب" ||
-                                        record["status"] == "متأخر"
-                                    ? () {
-                                      // التنقل إلى صفحة ExcuseUploadScreen مع تمرير guardianId
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder:
-                                              (context) => ExcuseUploadScreen(
-                                                day: record["day"],
-                                                date: record["date"],
-                                                status: record["status"],
-                                                guardianId:
-                                                    guardianId, // تمرير guardianId
-                                              ),
-                                        ),
-                                      );
-                                    }
-                                    : null,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 5),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.circle,
-                                        color: record["color"],
-                                        size: 16,
+            Expanded(
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: _fetchAttendanceRecords(studentId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (snapshot.hasError || !snapshot.hasData) {
+                    return const Center(
+                      child: Text("حدث خطأ أثناء جلب بيانات الحضور"),
+                    );
+                  } else if (snapshot.data!.isEmpty) {
+                    return const Center(
+                      child: Text("لا توجد بيانات حضور متاحة"),
+                    );
+                  } else {
+                    final attendanceRecords = snapshot.data!;
+                    return ListView.builder(
+                      itemCount: attendanceRecords.length,
+                      itemBuilder: (context, index) {
+                        final record = attendanceRecords[index];
+                        return InkWell(
+                          onTap:
+                              record["status"] == "غائب" ||
+                                      record["status"] == "متأخر"
+                                  ? () {
+                                    // التنقل إلى صفحة ExcuseUploadScreen مع تمرير guardianId
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => ExcuseUploadScreen(
+                                              day: record["day"],
+                                              date: record["date"],
+                                              status: record["status"],
+                                              guardianId: guardianId,
+                                            ),
                                       ),
-                                      const SizedBox(width: 5),
-                                      Text(
-                                        record["status"],
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
-                                    ],
-                                  ),
-                                  Text(
-                                    "${record["day"]} ${record["date"]}",
-                                    style: const TextStyle(fontSize: 16),
-                                  ),
-                                ],
-                              ),
+                                    );
+                                  }
+                                  : null,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 5),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.circle,
+                                      color: record["color"],
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      record["status"],
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                  "${record["day"]} ${record["date"]}",
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
                             ),
-                          );
-                        }).toList(),
-                  ),
-                ],
+                          ),
+                        );
+                      },
+                    );
+                  }
+                },
               ),
             ),
           ],

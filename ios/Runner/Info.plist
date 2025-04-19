@@ -80,6 +80,11 @@
     <!-- أذونات حفظ الصور (اختياري إذا كنت تستخدم حفظ الصور) -->
     <key>NSPhotoLibraryAddUsageDescription</key>
     <string>نحتاج إذن للوصول إلى المعرض لحفظ الصورة.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+<string>نحتاج موقعك لتحديد المسافة من المدرسة</string>
+<key>NSLocationAlwaysUsageDescription</key>
+<string>نحتاج موقعك لتحديد المسافة من المدرسة</string>
+
 
 </dict>
 </plist>

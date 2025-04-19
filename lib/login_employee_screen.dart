@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mut6/PasswordRecoveryScreen.dart';
 import 'package:mut6/admin_screen.dart';
 import 'package:mut6/home_screen.dart';
 import 'package:mut6/teacher_screen.dart'; // استيراد شاشة HomeScreen
@@ -112,6 +113,65 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
     );
   }
 
+  Widget _buildInputField(
+    TextEditingController controller,
+    String hint,
+    IconData icon, {
+    bool obscureText = false,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: const Color.fromARGB(255, 1, 113, 189)),
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.grey),
+        filled: true,
+        fillColor: Colors.grey[300],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton(String label, VoidCallback onPressed) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color.fromARGB(255, 1, 113, 189),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 18, color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordRecoveryButton() {
+    return TextButton(
+      onPressed: () {
+        // الانتقال إلى شاشة استعادة كلمة المرور
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => PasswordRecoveryScreen()),
+        );
+      },
+      child: const Text(
+        'استعادة كلمة المرور',
+        style: TextStyle(color: Color.fromARGB(255, 1, 113, 189), fontSize: 16),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -159,50 +219,9 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
             ),
             const SizedBox(height: 20),
             _buildActionButton('تسجيل دخول', _login),
+            const SizedBox(height: 10),
+            _buildPasswordRecoveryButton(), // زر استعادة كلمة المرور
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputField(
-    TextEditingController controller,
-    String hint,
-    IconData icon, {
-    bool obscureText = false,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: const Color.fromARGB(255, 1, 113, 189)),
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
-        filled: true,
-        fillColor: Colors.grey[300],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(String label, VoidCallback onPressed) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(255, 1, 113, 189),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 18, color: Colors.white),
         ),
       ),
     );

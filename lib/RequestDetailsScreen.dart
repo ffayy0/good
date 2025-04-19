@@ -6,18 +6,33 @@ class RequestDetailsScreen extends StatelessWidget {
   final String grade;
   final String teacherName;
   final String exitTime;
-  final QueryDocumentSnapshot<Object?> request; // تأكد من وجود هذا الباراميتر
   final String requestId;
 
-  // تأكد من إضافة request هنا في الكونستركتر
   RequestDetailsScreen({
     required this.studentName,
     required this.grade,
     required this.teacherName,
     required this.exitTime,
-    required this.request, // التأكد من تمرير الباراميتر
     required this.requestId,
   });
+
+  Future<void> markRequestAsCompleted(BuildContext context) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('requests')
+          .doc(requestId)
+          .update({
+            'status': 'completed', // تحديث الحالة إلى "مكتمل"
+          });
+      print("تم تحديث حالة الطلب إلى مكتمل.");
+      Navigator.pop(context); // العودة إلى الشاشة السابقة بعد الإكمال
+    } catch (e) {
+      print("❌ خطأ أثناء تحديث حالة الطلب: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("حدث خطأ أثناء تحديث حالة الطلب.")),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +62,10 @@ class RequestDetailsScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text("الطالبة: $studentName", style: TextStyle(fontSize: 18)),
-                  Text("الصف: $grade", style: TextStyle(fontSize: 18)),
+                  Text(
+                    "الصف: ${grade.isNotEmpty ? grade : 'غير محدد'}",
+                    style: TextStyle(fontSize: 18),
+                  ),
                   Text("المعلمة: $teacherName", style: TextStyle(fontSize: 18)),
                   Text("وقت الخروج: $exitTime", style: TextStyle(fontSize: 18)),
                 ],
@@ -56,8 +74,7 @@ class RequestDetailsScreen extends StatelessWidget {
             Spacer(),
             MaterialButton(
               onPressed: () {
-                // يمكن إضافة وظيفة عند النقر على زر "اكتمل"
-                print("اكتمل");
+                markRequestAsCompleted(context);
               },
               color: Color.fromARGB(255, 1, 113, 189),
               textColor: Colors.white,

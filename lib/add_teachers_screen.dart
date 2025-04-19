@@ -5,6 +5,7 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 
 import 'widgets/custom_button.dart';
+import 'widgets/custom_button_auth.dart';
 import 'widgets/custom_text_field.dart';
 
 class AddTeacherScreen extends StatelessWidget {
@@ -17,22 +18,32 @@ class AddTeacherScreen extends StatelessWidget {
   final String senderEmail = "8ffaay01@gmail.com";
   final String senderPassword = "urwn frcb fzug ucyz"; // App Password
 
-  Future<bool> isTeacherDuplicate(String id, String email, String phone) async {
-    var checks = await Future.wait([
-      FirebaseFirestore.instance
-          .collection('teachers')
-          .where('id', isEqualTo: id)
-          .get(),
-      FirebaseFirestore.instance
-          .collection('teachers')
-          .where('email', isEqualTo: email)
-          .get(),
-      FirebaseFirestore.instance
-          .collection('teachers')
-          .where('phone', isEqualTo: phone)
-          .get(),
-    ]);
-    return checks.any((snapshot) => snapshot.docs.isNotEmpty);
+  Future<String?> checkTeacherDuplicates(
+    String id,
+    String email,
+    String phone,
+  ) async {
+    final firestore = FirebaseFirestore.instance;
+
+    final idCheck =
+        await firestore.collection('teachers').where('id', isEqualTo: id).get();
+    if (idCheck.docs.isNotEmpty) return "رقم المعلم مستخدم من قبل.";
+
+    final emailCheck =
+        await firestore
+            .collection('teachers')
+            .where('email', isEqualTo: email)
+            .get();
+    if (emailCheck.docs.isNotEmpty) return "البريد الإلكتروني مستخدم من قبل.";
+
+    final phoneCheck =
+        await firestore
+            .collection('teachers')
+            .where('phone', isEqualTo: phone)
+            .get();
+    if (phoneCheck.docs.isNotEmpty) return "رقم الجوال مستخدم من قبل.";
+
+    return null;
   }
 
   Future<void> addTeacher(BuildContext context) async {
@@ -47,6 +58,13 @@ class AddTeacherScreen extends StatelessWidget {
       return;
     }
 
+    // التحقق من الاسم الثلاثي
+    if (name.split(' ').length < 3) {
+      showSnackBar(context, "الرجاء إدخال الاسم الثلاثي على الأقل");
+      return;
+    }
+
+    // التحقق من رقم الجوال
     final phoneRegex = RegExp(r'^05\d{8}$');
     if (!phoneRegex.hasMatch(phone)) {
       showSnackBar(
@@ -56,9 +74,18 @@ class AddTeacherScreen extends StatelessWidget {
       return;
     }
 
-    bool isDuplicate = await isTeacherDuplicate(id, email, phone);
-    if (isDuplicate) {
-      showSnackBar(context, "هذا المعلم مسجل مسبقًا، لا يمكن تكرار البيانات.");
+    // التحقق من صيغة البريد
+    if (!RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$',
+    ).hasMatch(email)) {
+      showSnackBar(context, "البريد الإلكتروني غير صحيح");
+      return;
+    }
+
+    // التحقق من التكرار
+    String? duplicateMessage = await checkTeacherDuplicates(id, email, phone);
+    if (duplicateMessage != null) {
+      showSnackBar(context, "⚠️ $duplicateMessage");
       return;
     }
 
@@ -91,6 +118,7 @@ class AddTeacherScreen extends StatelessWidget {
     }
   }
 
+  // ✅ إرسال البريد الإلكتروني
   Future<void> sendEmail(
     String recipientEmail,
     String name,
@@ -98,7 +126,7 @@ class AddTeacherScreen extends StatelessWidget {
     String password,
     String specialty,
   ) async {
-    final smtpServer = gmail(senderEmail, senderPassword);
+    final smtpServer = getSmtpServer(senderEmail, senderPassword);
 
     final message =
         Message()
@@ -127,11 +155,70 @@ class AddTeacherScreen extends StatelessWidget {
 
     try {
       await send(message, smtpServer);
+      print("📩 تم إرسال البريد الإلكتروني بنجاح إلى $recipientEmail");
     } catch (e) {
-      print("❌ فشل في إرسال الإيميل: $e");
+      print("❌ خطأ في إرسال البريد: $e");
     }
   }
 
+  // ✅ اختيار SMTP بناءً على نوع البريد
+  SmtpServer getSmtpServer(String email, String password) {
+    String domain = email.split('@').last.toLowerCase();
+
+    switch (domain) {
+      case 'gmail.com':
+        return gmail(email, password);
+      case 'outlook.com':
+      case 'hotmail.com':
+      case 'live.com':
+        return SmtpServer(
+          'smtp.office365.com',
+          port: 587,
+          username: email,
+          password: password,
+          ssl: false,
+          allowInsecure: true,
+        );
+      case 'yahoo.com':
+        return SmtpServer(
+          'smtp.mail.yahoo.com',
+          port: 587,
+          username: email,
+          password: password,
+          ssl: false,
+          allowInsecure: true,
+        );
+      case 'icloud.com':
+        return SmtpServer(
+          'smtp.mail.me.com',
+          port: 587,
+          username: email,
+          password: password,
+          ssl: false,
+          allowInsecure: true,
+        );
+      case 'zoho.com':
+        return SmtpServer(
+          'smtp.zoho.com',
+          port: 587,
+          username: email,
+          password: password,
+          ssl: true,
+          allowInsecure: false,
+        );
+      default:
+        return SmtpServer(
+          'smtp.$domain',
+          port: 587,
+          username: email,
+          password: password,
+          ssl: false,
+          allowInsecure: true,
+        );
+    }
+  }
+
+  // ✅ توليد كلمة مرور عشوائية
   String generateRandomPassword() {
     const chars =
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

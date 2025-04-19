@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:mut6/GuardianPasswordRecoveryScreen.dart';
+import 'package:mut6/SchoolPasswordRecoveryScreen.dart';
 import 'package:mut6/School_screen.dart';
 import 'package:mut6/registerr_screen.dart';
 
@@ -104,6 +106,9 @@ class _LoginSchoolScreenState extends State<LoginSchoolScreen> {
             ),
             const SizedBox(height: 20),
             _buildActionButton('تسجيل دخول', _login),
+            const SizedBox(height: 10),
+            _buildPasswordRecoveryButton(), // زر استعادة كلمة المرور
+
             const SizedBox(height: 20),
             const Text('إنشاء حساب جديد', style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 5),
@@ -138,6 +143,24 @@ class _LoginSchoolScreenState extends State<LoginSchoolScreen> {
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordRecoveryButton() {
+    return TextButton(
+      onPressed: () {
+        // الانتقال إلى شاشة استعادة كلمة المرور
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SchoolPasswordRecoveryScreen(),
+          ),
+        );
+      },
+      child: const Text(
+        'استعادة كلمة المرور',
+        style: TextStyle(color: Color.fromARGB(255, 1, 113, 189), fontSize: 16),
       ),
     );
   }

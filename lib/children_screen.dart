@@ -35,35 +35,25 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
     String guardianId,
   ) async {
     List<Map<String, dynamic>> students = [];
-
     try {
-      // البحث في جميع المراحل والفصول
-      final stages = ['first', 'second', 'third'];
-      for (var stage in stages) {
-        final classes = ['1', '2', '3', '4', '5', '6'];
-        for (var schoolClass in classes) {
-          final querySnapshot =
-              await FirebaseFirestore.instance
-                  .collection('stages')
-                  .doc(stage)
-                  .collection(schoolClass)
-                  .where('guardianId', isEqualTo: guardianId)
-                  .get();
+      // البحث مباشرة في المجموعة students
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('students')
+              .where('guardianId', isEqualTo: guardianId)
+              .get();
 
-          for (var doc in querySnapshot.docs) {
-            students.add({
-              "id": doc['id'],
-              "name": doc['name'],
-              "schoolClass": doc['schoolClass'],
-              "stage": doc['stage'],
-            });
-          }
-        }
+      for (var doc in querySnapshot.docs) {
+        students.add({
+          "id": doc['id'],
+          "name": doc['name'],
+          "schoolClass": doc['schoolClass'],
+          "stage": doc['stage'],
+        });
       }
     } catch (e) {
-      print("خطأ أثناء جلب بيانات الطلاب: $e");
+      print("❌ خطأ أثناء جلب بيانات الطلاب: $e");
     }
-
     return students;
   }
 
@@ -206,7 +196,7 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                                     _selectedStudentId = value;
                                   });
                                 },
-                                activeColor: Color.fromARGB(
+                                activeColor: const Color.fromARGB(
                                   255,
                                   1,
                                   113,

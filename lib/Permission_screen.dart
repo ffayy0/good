@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mut6/RequestDetailsScreen.dart';
+import 'package:mut6/exit_request_details_screen.dart';
 
 class PermissionScreen extends StatelessWidget {
   @override
@@ -20,7 +20,14 @@ class PermissionScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('excuses').snapshots(),
+          stream:
+              FirebaseFirestore.instance
+                  .collection('excuses')
+                  .where(
+                    'status',
+                    isEqualTo: null,
+                  ) // عرض الطلبات التي لم يتم قبولها أو رفضها
+                  .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator());
@@ -36,28 +43,16 @@ class PermissionScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final request = requests[index];
                   final data = request.data() as Map<String, dynamic>;
-
-                  final studentName = data['studentName'] ?? '';
-                  final grade = data['grade'] ?? '';
-                  final teacherName = data['teacherName'] ?? '';
-                  final exitTime =
-                      (data['exitTime'] as Timestamp?)?.toDate().toString() ??
-                      '';
-
+                  final studentName = data['studentName'];
+                  final grade = data['grade']; // الحقل grade موجود الآن
                   return InkWell(
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder:
-                              (context) => RequestDetailsScreen(
-                                request: request,
-                                requestId: request.id,
-                                studentName: studentName,
-                                grade: grade,
-                                teacherName: teacherName,
-                                exitTime: exitTime,
-                              ),
+                              (context) =>
+                                  RequestDetailsScreen(request: request),
                         ),
                       );
                     },

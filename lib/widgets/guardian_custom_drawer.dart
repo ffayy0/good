@@ -1,5 +1,3 @@
-// lib/widgets/guardian_custom_drawer.dart
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mut6/home_screen.dart';
@@ -32,7 +30,7 @@ class GuardianCustomDrawer extends StatelessWidget {
             icon: Icons.logout,
             onTap: () => _signOut(context),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 288),
         ],
       ),
     );

@@ -2,27 +2,31 @@ import 'package:flutter/material.dart';
 
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
-  final IconData icon;
   final String hintText;
+  final IconData? icon; // icon صارت اختيارية
 
-  const CustomTextField({
+  CustomTextField({
     required this.controller,
-    required this.icon,
     required this.hintText,
+    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.indigo),
-        hintText: hintText,
-        filled: true,
-        fillColor: Colors.grey[200],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: TextField(
+        controller: controller,
+        textAlign: TextAlign.right,
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: icon != null ? Icon(icon, color: Colors.indigo) : null,
+          filled: true,
+          fillColor: Colors.grey[200],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
     );

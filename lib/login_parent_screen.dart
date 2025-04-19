@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mut6/PasswordRecoveryScreen.dart';
 import 'package:mut6/parent_screen.dart';
 import 'children_screen.dart'; // استيراد شاشة التابعين
 
@@ -145,6 +146,8 @@ class _LoginParentScreenState extends State<LoginParentScreen> {
             ),
             const SizedBox(height: 20),
             _buildActionButton('تسجيل دخول', _login),
+            const SizedBox(height: 10),
+            _buildPasswordRecoveryButton(), // زر استعادة كلمة المرور
           ],
         ),
       ),
@@ -170,6 +173,22 @@ class _LoginParentScreenState extends State<LoginParentScreen> {
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
         ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordRecoveryButton() {
+    return TextButton(
+      onPressed: () {
+        // الانتقال إلى شاشة استعادة كلمة المرور
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => PasswordRecoveryScreen()),
+        );
+      },
+      child: const Text(
+        'استعادة كلمة المرور',
+        style: TextStyle(color: Color.fromARGB(255, 1, 113, 189), fontSize: 16),
       ),
     );
   }

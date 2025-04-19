@@ -2,18 +2,29 @@ import 'package:firebase_core/firebase_core.dart'; // استيراد Firebase Co
 import 'package:flutter/material.dart';
 import 'package:mut6/MapScreen.dart';
 import 'package:mut6/School_screen.dart';
+import 'package:mut6/TeacherProvider.dart';
 import 'package:mut6/WelcomeScreen.dart';
 import 'package:mut6/add_admin_screen.dart';
 import 'package:mut6/login_screen.dart';
 import 'package:mut6/map_picker_screen.dart';
 import 'package:mut6/modifyAdminScreen.dart';
-import 'package:mut6/admin_screen.dart'; // تأكد من استيراد شاشة إدارة المشرفين إذا كنت تستخدمها
+import 'package:mut6/admin_screen.dart';
+import 'package:mut6/provider.dart';
+import 'package:provider/provider.dart'; // تأكد من استيراد شاشة إدارة المشرفين إذا كنت تستخدمها
 
 void main() async {
   // تهيئة Widgets وFirebase
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(); // تهيئة Firebase
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => TeacherProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {

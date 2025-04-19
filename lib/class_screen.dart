@@ -24,7 +24,6 @@ class ClassScreen extends StatelessWidget {
             CustomButton(
               title: "أولى ثانوي",
               onPressed: () {
-                // الانتقال إلى صفحة اختيار الكلاس مع تمرير اسم المرحلة
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -38,7 +37,6 @@ class ClassScreen extends StatelessWidget {
             CustomButton(
               title: "ثاني ثانوي",
               onPressed: () {
-                // الانتقال إلى صفحة اختيار الكلاس مع تمرير اسم المرحلة
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -52,7 +50,6 @@ class ClassScreen extends StatelessWidget {
             CustomButton(
               title: "ثالث ثانوي",
               onPressed: () {
-                // الانتقال إلى صفحة اختيار الكلاس مع تمرير اسم المرحلة
                 Navigator.push(
                   context,
                   MaterialPageRoute(
