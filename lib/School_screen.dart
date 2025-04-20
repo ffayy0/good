@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mut6/RequestsListScreen.dart';
 import 'package:mut6/widgets/custom_button.dart';
 
 import 'widgets/custom_button_auth.dart';
@@ -85,6 +86,19 @@ class SchoolScreen extends StatelessWidget {
                     title: "تغيير موقع المدرسة",
                     onPressed: () {
                       Navigator.pushNamed(context, '/MapScreen');
+                    },
+                  ),
+                  const SizedBox(height: 35),
+                  // زر جديد لعرض طلبات النداء
+                  CustomButtonAuth(
+                    title: "طلبات النداء",
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RequestsListScreen(),
+                        ),
+                      );
                     },
                   ),
                 ],

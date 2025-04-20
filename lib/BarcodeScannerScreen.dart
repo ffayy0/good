@@ -11,6 +11,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
   String barcodeResult = "لم يتم المسح بعد";
+  final Set<String> scannedBarcodes = {}; // لتخزين الباركود المسجلة
 
   @override
   void dispose() {
@@ -51,8 +52,17 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                 setState(() => controller = qrController);
                 qrController.scannedDataStream.listen((scanData) {
                   String scannedId = scanData.code ?? "خطأ في المسح";
-                  setState(() => barcodeResult = scannedId);
-                  registerAttendance(scannedId); // تسجيل الحضور مباشرة
+
+                  // التحقق مما إذا كان الباركود قد تم مسحه بالفعل
+                  if (!scannedBarcodes.contains(scannedId)) {
+                    setState(() {
+                      barcodeResult = scannedId;
+                      scannedBarcodes.add(
+                        scannedId,
+                      ); // إضافة الباركود إلى المجموعة
+                    });
+                    registerAttendance(scannedId); // تسجيل الحضور مباشرة
+                  }
                 });
               },
             ),

@@ -18,11 +18,13 @@ class _MapScreenState extends State<MapScreen> {
       // الحصول على مرجع للمستند الذي يحتوي على بيانات المدرسة
       final schoolRef = FirebaseFirestore.instance
           .collection('schools')
-          .doc('schoolID'); // استبدل "schoolID" بمعرف المدرسة الخاص بك
+          .doc(
+            '4U1JDQRkOXQ1WWSwAwvWn6EY41X2',
+          ); // استبدل "schoolID" بمعرف المدرسة الخاص بك
 
       // تحديث الموقع في قاعدة البيانات
       await schoolRef.update({
-        'location': GeoPoint(
+        'schoolLocation': GeoPoint(
           _selectedLocation.latitude,
           _selectedLocation.longitude,
         ), // حفظ الموقع الجديد

@@ -60,17 +60,17 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
       _parentLocation = LatLng(position.latitude, position.longitude);
       print("موقع ولي الأمر: $_parentLocation");
 
-      // جلب موقع المدرسة من Firestore
+      // جلب موقع المدرسة من Firestore باستخدام المعرف
       print("جلب موقع المدرسة من Firestore...");
       DocumentSnapshot doc =
           await FirebaseFirestore.instance
               .collection('schools')
-              .doc('1nopwBHqOJSVawb8kXD0Y45R0Iv1')
+              .doc('4U1JDQRkOXQ1WWSwAwvWn6EY41X2')
               .get();
 
       if (!doc.exists) {
         print(
-          "خطأ: الوثيقة '1nopwBHqOJSVawb8kXD0Y45R0Iv1' غير موجودة في Firestore.",
+          "خطأ: الوثيقة '0p9GNPqh1UaUtu85W8JpNfD9QEk1' غير موجودة في Firestore.",
         );
         showDialog(
           context: context,
@@ -93,11 +93,36 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
         return;
       }
 
-      // استخراج الموقع من حقل schoolLocation
-      String schoolLocationStr = doc.get('schoolLocation');
+      // التحقق من وجود الحقل schoolLocation
+      final Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
+      if (data == null || !data.containsKey('schoolLocation')) {
+        print("خطأ: الحقل 'schoolLocation' غير موجود في الوثيقة.");
+        showDialog(
+          context: context,
+          builder:
+              (context) => AlertDialog(
+                title: const Text("خطأ"),
+                content: const Text(
+                  "لم يتم العثور على موقع المدرسة في الوثيقة.",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text("حسناً"),
+                  ),
+                ],
+              ),
+        );
+        return;
+      }
+
+      // استخراج الموقع من النص المدمج schoolLocation
+      String schoolLocationStr = data['schoolLocation'];
       List<String> coordinates = schoolLocationStr.split(',');
-      double lat = double.parse(coordinates[0]);
-      double lng = double.parse(coordinates[1]);
+      double lat = double.parse(coordinates[0].trim());
+      double lng = double.parse(coordinates[1].trim());
       _schoolLocation = LatLng(lat, lng);
       print("موقع المدرسة: $_schoolLocation");
 
@@ -108,6 +133,27 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
       print("تم تحديث مركز الخريطة بنجاح.");
     } catch (e) {
       print('خطأ أثناء جلب الموقع: $e');
+    }
+  }
+
+  void _saveRequestToFirestore() async {
+    if (_parentLocation == null) {
+      print("خطأ: موقع ولي الأمر غير متوفر.");
+      return;
+    }
+
+    try {
+      await FirebaseFirestore.instance.collection('pikup_call').add({
+        'studentName': widget.studentName, // اسم الطالب
+        'studentId': widget.studentId, // معرف الطالب
+        'timestamp': Timestamp.now(), // وقت إرسال الطلب
+        'status': 'جديد', // حالة الطلب
+        'location':
+            '${_parentLocation!.latitude}, ${_parentLocation!.longitude}', // موقع ولي الأمر
+      });
+      print("تم حفظ الطلب بنجاح في Firestore تحت اسم 'pikup_call'.");
+    } catch (e) {
+      print('خطأ أثناء حفظ الطلب: $e');
     }
   }
 
@@ -144,6 +190,8 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
     print("المسافة بين ولي الأمر والمدرسة: $distance متر");
 
     if (distance <= 500) {
+      // حفظ الطلب في Firestore
+      _saveRequestToFirestore();
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -236,6 +284,19 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
                             child: const Icon(
                               Icons.person_pin_circle,
                               color: Colors.blue,
+                              size: 40,
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (_schoolLocation != null)
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _schoolLocation!,
+                            child: const Icon(
+                              Icons.location_on,
+                              color: Colors.red,
                               size: 40,
                             ),
                           ),
