@@ -3,7 +3,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
 import 'package:mut6/alert_dialog_helper.dart';
 
 class RequestHelpScreen extends StatefulWidget {
@@ -21,176 +22,147 @@ class RequestHelpScreen extends StatefulWidget {
 }
 
 class _RequestHelpScreenState extends State<RequestHelpScreen> {
-  LatLng? _parentLocation; // موقع ولي الأمر
-  LatLng? _schoolLocation; // موقع المدرسة
-  LatLng _mapCenter = LatLng(24.5247, 39.5692); // مركز الخريطة الافتراضي
+  LatLng? _parentLocation;
+  LatLng? _schoolLocation;
+  LatLng _mapCenter = LatLng(24.5247, 39.5692);
   MapController _mapController = MapController();
+  bool _requestSent = false;
 
   @override
   void initState() {
     super.initState();
-    print("بدء تهيئة الموقع...");
-    _initializeLocation();
+    _initializeLocationAndSchool();
   }
 
-  Future<void> _initializeLocation() async {
+  Future<void> _initializeLocationAndSchool() async {
     try {
-      // طلب صلاحية الموقع
-      print("طلب صلاحية الموقع...");
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        print("صلاحية الموقع مرفوضة، طلب الصلاحية مرة أخرى...");
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          print("تم رفض صلاحية الموقع من قبل المستخدم.");
-          return;
-        }
+        if (permission == LocationPermission.denied) return;
       }
 
-      // الحصول على موقع ولي الأمر
-      print("جلب موقع ولي الأمر...");
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: AppleSettings(
-          accuracy: LocationAccuracy.best,
-          activityType: ActivityType.fitness,
-          pauseLocationUpdatesAutomatically: true,
-          allowBackgroundLocationUpdates: false,
-        ),
-      );
-      _parentLocation = LatLng(position.latitude, position.longitude);
-      print("موقع ولي الأمر: $_parentLocation");
-
-      // جلب موقع المدرسة من Firestore باستخدام المعرف
-      print("جلب موقع المدرسة من Firestore...");
-      DocumentSnapshot doc =
-          await FirebaseFirestore.instance
-              .collection('schools')
-              .doc('4U1JDQRkOXQ1WWSwAwvWn6EY41X2')
-              .get();
-
-      if (!doc.exists) {
-        print(
-          "خطأ: الوثيقة '0p9GNPqh1UaUtu85W8JpNfD9QEk1' غير موجودة في Firestore.",
-        );
-        showDialog(
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                title: const Text("خطأ"),
-                content: const Text(
-                  "لم يتم العثور على موقع المدرسة في قاعدة البيانات.",
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Text("حسناً"),
-                  ),
-                ],
-              ),
-        );
-        return;
-      }
-
-      // التحقق من وجود الحقل schoolLocation
-      final Map<String, dynamic>? data = doc.data() as Map<String, dynamic>?;
-      if (data == null || !data.containsKey('schoolLocation')) {
-        print("خطأ: الحقل 'schoolLocation' غير موجود في الوثيقة.");
-        showDialog(
-          context: context,
-          builder:
-              (context) => AlertDialog(
-                title: const Text("خطأ"),
-                content: const Text(
-                  "لم يتم العثور على موقع المدرسة في الوثيقة.",
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Text("حسناً"),
-                  ),
-                ],
-              ),
-        );
-        return;
-      }
-
-      // استخراج الموقع من النص المدمج schoolLocation
-      String schoolLocationStr = data['schoolLocation'];
-      List<String> coordinates = schoolLocationStr.split(',');
-      double lat = double.parse(coordinates[0].trim());
-      double lng = double.parse(coordinates[1].trim());
-      _schoolLocation = LatLng(lat, lng);
-      print("موقع المدرسة: $_schoolLocation");
-
-      // تحديث مركز الخريطة إلى موقع ولي الأمر
+      Position position = await Geolocator.getCurrentPosition();
       setState(() {
+        _parentLocation = LatLng(position.latitude, position.longitude);
         _mapCenter = _parentLocation!;
       });
-      print("تم تحديث مركز الخريطة بنجاح.");
+
+      String? schoolId = await _getSchoolIdFromStudent(widget.studentId);
+      if (schoolId == null) {
+        _showLocationError();
+        return;
+      }
+
+      DocumentSnapshot schoolDoc =
+          await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(schoolId)
+              .get();
+
+      if (!schoolDoc.exists ||
+          schoolDoc['latitude'] == null ||
+          schoolDoc['longitude'] == null) {
+        _showLocationError();
+        return;
+      }
+
+      _schoolLocation = LatLng(schoolDoc['latitude'], schoolDoc['longitude']);
+      setState(() {});
     } catch (e) {
-      print('خطأ أثناء جلب الموقع: $e');
+      print('❌ خطأ أثناء التهيئة: $e');
+      _showLocationError();
     }
+  }
+
+  Future<String?> _getSchoolIdFromStudent(String studentId) async {
+    try {
+      final studentDoc =
+          await FirebaseFirestore.instance
+              .collection('students')
+              .doc(studentId)
+              .get();
+
+      if (!studentDoc.exists) return null;
+      final guardianId = studentDoc['guardianId'];
+
+      final parentQuery =
+          await FirebaseFirestore.instance
+              .collection('parents')
+              .where('id', isEqualTo: guardianId)
+              .limit(1)
+              .get();
+
+      if (parentQuery.docs.isEmpty) return null;
+      return parentQuery.docs.first['schoolId'];
+    } catch (e) {
+      print("❌ خطأ في استخراج schoolId: $e");
+      return null;
+    }
+  }
+
+  void _showLocationError() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => const AlertDialog(
+            title: Text("خطأ"),
+            content: Text("لم يتم تحديد موقعك أو موقع المدرسة بشكل صحيح."),
+            actions: [TextButton(child: Text("حسناً"), onPressed: null)],
+          ),
+    );
   }
 
   void _saveRequestToFirestore() async {
-    if (_parentLocation == null) {
-      print("خطأ: موقع ولي الأمر غير متوفر.");
-      return;
-    }
+    if (_requestSent || _parentLocation == null) return;
 
     try {
       await FirebaseFirestore.instance.collection('pikup_call').add({
-        'studentName': widget.studentName, // اسم الطالب
-        'studentId': widget.studentId, // معرف الطالب
-        'timestamp': Timestamp.now(), // وقت إرسال الطلب
-        'status': 'جديد', // حالة الطلب
+        'studentName': widget.studentName,
+        'studentId': widget.studentId,
+        'timestamp': Timestamp.now(),
+        'status': 'جديد',
         'location':
-            '${_parentLocation!.latitude}, ${_parentLocation!.longitude}', // موقع ولي الأمر
+            '${_parentLocation!.latitude}, ${_parentLocation!.longitude}',
       });
-      print("تم حفظ الطلب بنجاح في Firestore تحت اسم 'pikup_call'.");
+
+      setState(() {
+        _requestSent = true;
+      });
+
+      Future.delayed(const Duration(minutes: 5), () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "انتهى الطلب تلقائيًا بعد 5 دقائق، يمكنك إنشاء طلب جديد الآن.",
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      });
     } catch (e) {
-      print('خطأ أثناء حفظ الطلب: $e');
+      print('❌ خطأ أثناء حفظ الطلب: $e');
     }
   }
 
   void _checkDistance() {
     if (_parentLocation == null || _schoolLocation == null) {
-      print("خطأ: موقع ولي الأمر أو المدرسة غير متوفر.");
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text("خطأ"),
-              content: const Text(
-                "لم يتم تحديد موقعك أو موقع المدرسة بشكل صحيح.",
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: const Text("حسناً"),
-                ),
-              ],
-            ),
-      );
+      _showLocationError();
       return;
     }
 
-    // حساب المسافة بين ولي الأمر والمدرسة
-    double distance = Distance().as(
+    double distanceInMeters = Distance().as(
       LengthUnit.Meter,
       _parentLocation!,
       _schoolLocation!,
     );
-    print("المسافة بين ولي الأمر والمدرسة: $distance متر");
 
-    if (distance <= 500) {
-      // حفظ الطلب في Firestore
+    double walkingSpeedMetersPerMinute = 80;
+    double estimatedMinutes = distanceInMeters / walkingSpeedMetersPerMinute;
+
+    print("📏 المسافة: $distanceInMeters متر ≈ $estimatedMinutes دقائق");
+
+    if (estimatedMinutes <= 5) {
       _saveRequestToFirestore();
       Navigator.push(
         context,
@@ -198,7 +170,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
           builder:
               (context) => const AlertDialogHelper(
                 title: "تم إرسال الطلب",
-                message: "سوف يتم إلغاء الطلب بعد 5 دقائق",
+                message: "سيتم إلغاء الطلب بعد 5 دقائق تلقائيًا",
               ),
         ),
       );
@@ -209,7 +181,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
           builder:
               (context) => const AlertDialogHelper(
                 title: "عذراً",
-                message: "لا يمكنك إتمام العملية بسبب بعدك عن المدرسة",
+                message: "لا يمكنك تنفيذ العملية بسبب بعدك عن المدرسة",
               ),
         ),
       );
@@ -226,9 +198,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(

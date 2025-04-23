@@ -1,41 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mut6/attendence_screen.dart';
-import 'package:mut6/call_screen.dart';
-import 'request_permission_screen.dart'; // صفحة طلب الاستئذان
+import 'package:mut6/authorization_screen.dart';
 
-class ChildrenScreen extends StatefulWidget {
+class MultiSelectChildrenScreen extends StatefulWidget {
   final String guardianId; // معرف ولي الأمر المسجل
-  final String
-  serviceType; // نوع الخدمة المختارة (مثل "الحضور" أو "طلب الاستئذان")
-
-  const ChildrenScreen({
+  final String serviceType; // نوع الخدمة (مثل "التوكيل")
+  const MultiSelectChildrenScreen({
     Key? key,
     required this.guardianId,
     required this.serviceType,
   }) : super(key: key);
 
   @override
-  _ChildrenScreenState createState() => _ChildrenScreenState();
+  _MultiSelectChildrenScreenState createState() =>
+      _MultiSelectChildrenScreenState();
 }
 
-class _ChildrenScreenState extends State<ChildrenScreen> {
+class _MultiSelectChildrenScreenState extends State<MultiSelectChildrenScreen> {
   late Future<List<Map<String, dynamic>>> _studentsFuture;
-  String? _selectedStudentId; // معرف الطالب المختار
+  Map<String, bool> selectedStudents = {}; // قائمة الطلاب المحددين
 
   @override
   void initState() {
     super.initState();
-    // جلب بيانات الطلاب بناءً على معرف ولي الأمر
     _studentsFuture = _fetchStudentsByGuardianId(widget.guardianId);
   }
 
+  // دالة لجلب بيانات الطلاب من Firestore
   Future<List<Map<String, dynamic>>> _fetchStudentsByGuardianId(
     String guardianId,
   ) async {
     List<Map<String, dynamic>> students = [];
     try {
-      // البحث مباشرة في المجموعة students
       final querySnapshot =
           await FirebaseFirestore.instance
               .collection('students')
@@ -58,62 +54,35 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
 
   // دالة للتوجيه إلى الصفحة الصحيحة بناءً على الخدمة
   void _navigateToServiceScreen(List<Map<String, dynamic>> students) {
-    // التحقق من أن طالبًا واحدًا قد تم اختياره
-    if (_selectedStudentId == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("يرجى اختيار طالب واحد")));
+    // استخراج قائمة الطلاب المحددين
+    List<Map<String, dynamic>> selectedStudentsList =
+        students
+            .where((student) => selectedStudents[student["id"]] == true)
+            .toList();
+
+    if (selectedStudentsList.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("يرجى اختيار طالب واحد على الأقل")),
+      );
       return;
     }
 
-    // العثور على بيانات الطالب المختار
-    final selectedStudent = students.firstWhere(
-      (student) => student["id"] == _selectedStudentId,
-    );
-
-    // فتح الصفحة المخصصة بناءً على نوع الخدمة
-    switch (widget.serviceType) {
-      case "attendance": // إذا كانت الخدمة هي "الحضور"
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => AttendanceScreen(
-                  studentId: selectedStudent["id"], // تمرير معرف الطالب
-                  guardianId: widget.guardianId, // تمرير معرف ولي الأمر
-                ),
-          ),
-        );
-        break;
-
-      case "permission": // إذا كانت الخدمة هي "طلب الاستئذان"
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => RequestPermissionScreen(
-                  studentId: selectedStudent["id"],
-                  studentName: selectedStudent["name"], // اسم الطالب
-                ),
-          ),
-        );
-        break;
-
-      case "call_request": // إذا كانت الخدمة هي "طلب النداء"
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => RequestHelpScreen(
-                  studentId: selectedStudent["id"],
-                  studentName: selectedStudent["name"], // اسم الطالب
-                ),
-          ),
-        );
-        break;
-
-      default:
-        print("خدمة غير معروفة");
+    // التحقق من أن نوع الخدمة هو "التوكيل"
+    if (widget.serviceType == "delegation") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => AuthorizationScreen(
+                //  students: selectedStudentsList, // تمرير قائمة الطلاب المحددين
+                guardianId: widget.guardianId, // تمرير معرف ولي الأمر
+              ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("خدمة غير مدعومة في هذه الصفحة")),
+      );
     }
   }
 
@@ -162,6 +131,7 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                     return ListView.builder(
                       itemCount: students.length,
                       itemBuilder: (context, index) {
+                        final student = students[index];
                         return Container(
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.symmetric(
@@ -176,12 +146,11 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                             textDirection: TextDirection.rtl,
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              Radio<String>(
-                                value: students[index]["id"],
-                                groupValue: _selectedStudentId,
+                              Checkbox(
+                                value: selectedStudents[student["id"]] ?? false,
                                 onChanged: (value) {
                                   setState(() {
-                                    _selectedStudentId = value;
+                                    selectedStudents[student["id"]] = value!;
                                   });
                                 },
                                 activeColor: const Color.fromARGB(
@@ -189,12 +158,12 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                                   1,
                                   113,
                                   189,
-                                ), // لون الزر
+                                ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  students[index]["name"],
+                                  student["name"],
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -212,29 +181,25 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity, // عرض كامل
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 1, 113, 189),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
-                  ),
+            ElevatedButton(
+              onPressed: () {
+                _studentsFuture.then((students) {
+                  _navigateToServiceScreen(students);
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color.fromARGB(255, 1, 113, 189),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
                 ),
-                onPressed: () {
-                  // الحصول على بيانات الطلاب من الـ FutureBuilder
-                  _studentsFuture.then((students) {
-                    _navigateToServiceScreen(students);
-                  });
-                },
-                child: const Text(
-                  "التالي",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                minimumSize: Size(double.infinity, 50),
+              ),
+              child: const Text(
+                "التالي",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),

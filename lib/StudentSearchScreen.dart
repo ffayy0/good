@@ -59,12 +59,21 @@ class _StudentSearchScreenState extends State<StudentSearchScreen> {
     }
   }
 
+  // تعريف اللون الأزرق للزر
+  final Color _buttonColor = const Color(
+    0xFF007AFF,
+  ); // أزرق مشابه للون iOS الافتراضي
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('بحث عن الطالب'),
-        backgroundColor: Color.fromARGB(255, 1, 113, 189),
+        title: const Text(
+          'بحث عن الطالب',
+          style: TextStyle(color: Colors.white), // لون الخط أبيض
+        ),
+        backgroundColor: Colors.green, // خلفية الشريط العلوي خضراء
+        iconTheme: const IconThemeData(color: Colors.white), // رموز بيضاء
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -75,16 +84,29 @@ class _StudentSearchScreenState extends State<StudentSearchScreen> {
               decoration: InputDecoration(
                 labelText: 'رقم الهوية',
                 border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Colors.black54,
+                ), // أيقونة البحث
               ),
               keyboardType: TextInputType.number,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _searchStudent,
-              child: Text('بحث'),
+              child: const Text(
+                'بحث',
+                style: TextStyle(color: Colors.white), // نص أبيض داخل الزر
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Color.fromARGB(255, 1, 113, 189),
+                backgroundColor: _buttonColor, // لون الزر الأزرق
+                padding: const EdgeInsets.symmetric(
+                  vertical: 15,
+                  horizontal: 30,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8), // حواف مستديرة
+                ),
               ),
             ),
           ],

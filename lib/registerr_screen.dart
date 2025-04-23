@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -25,36 +27,62 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // المرحلة
   String? selectedStage;
   final List<String> schoolStages = ['ابتدائي', 'متوسط', 'ثانوي'];
+  // بيانات المرسل
+  final String senderEmail = "8ffaay01@gmail.com"; // ✉ بريد المرسل
+  final String senderPassword = "vljn jaxv hukr qbct"; // 🔑 كلمة مرور التطبيق
 
   Future<LatLng?> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('خدمة الموقع غير مفعلة')));
+      ).showSnackBar(const SnackBar(content: Text('خدمة الموقع غير مفعلة')));
       return null;
     }
-
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('تم رفض صلاحية الموقع')));
+        ).showSnackBar(const SnackBar(content: Text('تم رفض صلاحية الموقع')));
         return null;
       }
     }
-
     if (permission == LocationPermission.deniedForever) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('صلاحية الموقع مرفوضة نهائيًا')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('صلاحية الموقع مرفوضة نهائيًا')),
+      );
       return null;
     }
-
     final position = await Geolocator.getCurrentPosition();
     return LatLng(position.latitude, position.longitude);
+  }
+
+  // ✅ دالة إرسال البريد الإلكتروني
+  Future<void> sendConfirmationEmail(
+    String recipientEmail,
+    String schoolName,
+  ) async {
+    final smtpServer = gmail(senderEmail, senderPassword);
+
+    final message =
+        Message()
+          ..from = Address(senderEmail, "Mutabie App")
+          ..recipients.add(recipientEmail)
+          ..subject = "تأكيد إنشاء حساب المدرسة"
+          ..text =
+              "مرحبًا،\n\n"
+              "تهانينا! تم إنشاء حساب المدرسة '$schoolName' بنجاح.\n\n"
+              "يمكنك الآن تسجيل الدخول واستخدام النظام.\n\n"
+              "تحياتنا، فريق متابع.";
+
+    try {
+      await send(message, smtpServer);
+      print("📩 تم إرسال البريد الإلكتروني بنجاح إلى $recipientEmail");
+    } catch (e) {
+      print("❌ خطأ في إرسال البريد: $e");
+    }
   }
 
   Future<void> registerSchool() async {
@@ -64,52 +92,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final schoolName = schoolNameController.text.trim();
     final schoolLocation = schoolLocationController.text.trim();
 
-    if (selectedStage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى اختيار مرحلة المدرسة')),
-      );
+    // التحقق من الاسم
+    if (schoolName.isEmpty ||
+        schoolName.length < 3 ||
+        !RegExp(r'^[\u0600-\u06FFa-zA-Z\s]+$').hasMatch(schoolName)) {
+      _showErrorDialog('يرجى إدخال اسم مدرسة صحيح (٣ أحرف أو أكثر).');
       return;
     }
 
-    if (schoolName.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('يرجى إدخال اسم المدرسة')));
+    // التحقق من الإيميل
+    if (email.isEmpty ||
+        !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$').hasMatch(email)) {
+      _showErrorDialog('يرجى إدخال بريد إلكتروني صحيح.');
+      return;
+    }
+
+    if (selectedStage == null) {
+      _showErrorDialog('يرجى اختيار مرحلة المدرسة.');
       return;
     }
 
     if (schoolLocation.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('يرجى إدخال موقع المدرسة')));
+      _showErrorDialog('يرجى إدخال موقع المدرسة.');
       return;
     }
-
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('يرجى إدخال بريد إلكتروني صالح')));
-      return;
-    }
-
-    String passwordPattern =
-        r'^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#\$&]).{8,}$';
-    RegExp regExp = RegExp(passwordPattern);
-    if (password.isEmpty || !regExp.hasMatch(password)) {
+    if (password.isEmpty || password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'كلمة المرور يجب أن تحتوي على أحرف كبيرة وصغيرة وأرقام ورموز، وأن تكون بطول 8 أحرف على الأقل',
-          ),
-        ),
+        SnackBar(content: Text('كلمة المرور يجب أن تكون بطول 6 أحرف أو أكثر')),
       );
       return;
     }
+    // التحقق من كلمة المرور
 
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('كلمات المرور غير متطابقة')));
+      _showErrorDialog('كلمات المرور غير متطابقة.');
       return;
     }
 
@@ -123,13 +139,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       double? longitude;
 
       try {
-        List<Location> locations = await locationFromAddress(schoolLocation);
-        if (locations.isNotEmpty) {
-          latitude = locations.first.latitude;
-          longitude = locations.first.longitude;
+        List<String> coordinates = schoolLocation.split(',');
+        if (coordinates.length == 2) {
+          latitude = double.tryParse(coordinates[0].trim());
+          longitude = double.tryParse(coordinates[1].trim());
         }
       } catch (e) {
-        print('خطأ في تحويل العنوان إلى إحداثيات: $e');
+        print('⚠️ خطأ في تحليل schoolLocation إلى إحداثيات: $e');
       }
 
       await FirebaseFirestore.instance
@@ -145,28 +161,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'createdAt': DateTime.now(),
           });
 
+      // ✅ إرسال البريد الإلكتروني بعد إنشاء الحساب
+      await sendConfirmationEmail(email, schoolName);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم إنشاء الحساب وتخزين البيانات بنجاح!')),
+        const SnackBar(content: Text('تم إنشاء الحساب وتخزين البيانات بنجاح!')),
       );
+
       Navigator.pop(context);
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = '';
+      if (e.code == 'email-already-in-use') {
+        errorMessage = 'البريد الإلكتروني مستخدم بالفعل.';
+      } else {
+        errorMessage = 'حدث خطأ أثناء إنشاء الحساب.';
+      }
+      _showErrorDialog(errorMessage);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('خطأ أثناء إنشاء الحساب: $e')));
+      _showErrorDialog('حدث خطأ غير متوقع: $e');
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            title: const Text(
+              'خطأ',
+              style: TextStyle(
+                color: Colors.red,
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            content: Text(message, textAlign: TextAlign.center),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('حسناً'),
+              ),
+            ],
+          ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 1, 113, 189),
-        title: const Text('تسجيل مدرسة'),
+        backgroundColor: Colors.green,
+        title: const Text('تسجيل مدرسة', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -186,15 +240,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 20),
               const Text(
                 'تسجيل حساب مدرسة',
-                style: TextStyle(
-                  fontSize: 20,
-                  color: Colors.black,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 20, color: Colors.black),
               ),
               const SizedBox(height: 30),
-
-              // القائمة المنسدلة لاختيار المرحلة
               _buildDropdownField(
                 label: 'مرحلة المدرسة',
                 icon: Icons.class_,
@@ -207,14 +255,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 15),
-
               _buildInputField(
                 schoolNameController,
                 'اسم المدرسة',
                 Icons.school,
               ),
               const SizedBox(height: 15),
-
               GestureDetector(
                 onTap: () async {
                   final LatLng? currentLocation = await _getCurrentLocation();
@@ -235,14 +281,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 15),
-
               _buildInputField(
                 emailController,
                 'البريد الإلكتروني',
                 Icons.email,
               ),
               const SizedBox(height: 15),
-
               _buildInputField(
                 passwordController,
                 'كلمة المرور',
@@ -250,7 +294,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: true,
               ),
               const SizedBox(height: 15),
-
               _buildInputField(
                 confirmPasswordController,
                 'تأكيد كلمة المرور',
@@ -258,7 +301,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 obscureText: true,
               ),
               const SizedBox(height: 30),
-
               _buildActionButton('تسجيل', registerSchool),
             ],
           ),
@@ -336,9 +378,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
       items:
-          items.map((String item) {
-            return DropdownMenuItem<String>(value: item, child: Text(item));
-          }).toList(),
+          items
+              .map(
+                (String item) =>
+                    DropdownMenuItem<String>(value: item, child: Text(item)),
+              )
+              .toList(),
       onChanged: onChanged,
     );
   }

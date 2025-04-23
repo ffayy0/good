@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
@@ -31,10 +32,13 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // الألوان المستخدمة في التصميم
-  final Color _buttonColor = const Color(0xFF0171BD); // الأزرق الفاتح
+  final Color _iconColor = const Color(
+    0xFF007AFF,
+  ); // أزرق مشابه للون iOS الافتراضي
+  final Color _buttonColor = const Color(0xFF007AFF); // نفس اللون الأزرق للزر
   final Color _textFieldFillColor =
       Colors.grey[200]!; // اللون الرمادي الفاتح للخلفية
-  final Color _textColor = Colors.blue; // اللون الأزرق للنصوص داخل المربعات
+  final Color _textColor = Colors.black; // اللون الأسود للنصوص داخل المربعات
 
   Future<void> _generateQR() async {
     String name = _nameController.text.trim();
@@ -90,6 +94,8 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
         'guardianId': guardianId,
         'guardianEmail': emailFromDb,
         'phone': phone,
+        'role': 'students',
+        'schoolId': FirebaseAuth.instance.currentUser!.uid,
       });
 
       // إنشاء بيانات QR
@@ -352,10 +358,16 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
               // زر إنشاء بطاقة الطالب
               ElevatedButton(
                 onPressed: _generateQR,
-                child: Text('إنشاء بطاقة الطالب'),
+                child: const Text(
+                  'إنشاء بطاقة الطالب',
+                  style: TextStyle(color: Colors.white),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _buttonColor,
-                  padding: EdgeInsets.symmetric(vertical: 15, horizontal: 30),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 15,
+                    horizontal: 30,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -379,16 +391,19 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF4CAF50)),
+        labelStyle: TextStyle(color: _textColor), // لون النص الأسود
         border: OutlineInputBorder(),
-        prefixIcon: Icon(icon, color: _buttonColor),
+        prefixIcon: Icon(icon, color: _iconColor), // أيقونة باللون الأزرق
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: _buttonColor),
+          borderSide: BorderSide(color: _iconColor), // حدود عند التركيز
         ),
         filled: true,
-        fillColor: _textFieldFillColor,
+        fillColor: _textFieldFillColor, // خلفية الحقل (رمادي فاتح)
       ),
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      style: TextStyle(
+        color: _textColor, // لون النص الأساسي داخل الحقل (أسود)
+      ),
     );
   }
 
@@ -397,10 +412,10 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
     return DropdownButtonFormField<String>(
       decoration: InputDecoration(
         labelText: 'المرحلة الدراسية',
-        labelStyle: const TextStyle(color: Color(0xFF4CAF50)),
+        labelStyle: TextStyle(color: _textColor), // لون النص الأسود
         border: OutlineInputBorder(),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: _buttonColor),
+          borderSide: BorderSide(color: _iconColor), // حدود عند التركيز
         ),
       ),
       value: _selectedStage,
@@ -424,14 +439,13 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
     return DropdownButtonFormField<String>(
       decoration: InputDecoration(
         labelText: 'اختر الصف',
-        labelStyle: const TextStyle(color: Color(0xFF4CAF50)),
+        labelStyle: TextStyle(color: _textColor), // لون النص الأسود
         border: OutlineInputBorder(),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: _buttonColor),
+          borderSide: BorderSide(color: _iconColor), // حدود عند التركيز
         ),
       ),
       value: _selectedClass,
-      hint: const Text('اختر الصف'),
       items:
           _classes
               .map(

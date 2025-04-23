@@ -2,11 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:mut6/AddTeacherScreen.dart';
 import 'package:mut6/BarcodeScannerScreen.dart' as barcode;
 import 'package:mut6/StudentSearchScreen.dart';
 import 'package:mut6/add_parents_screen.dart';
 import 'package:mut6/add_students_screen.dart' as student;
 import 'package:mut6/add_teachers_screen.dart';
+import 'package:mut6/attached%20excuses.dart';
 import 'package:mut6/home_screen.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:typed_data';
@@ -69,12 +71,16 @@ class _CustomDrawerState extends State<CustomDrawer> {
             },
           ),
           drawerItem(
-            title: "الأعذار المرفقة",
+            title: "المعلمين",
             icon: Icons.attachment,
             onTap: () {
-              print("📎 تم الضغط على الأعذار المرفقة");
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => TeacherListScreen()),
+              );
             },
           ),
+
           drawerItem(
             title: "مسح الباركود",
             icon: Icons.qr_code_scanner, // أيقونة من نوع IconData

@@ -111,7 +111,7 @@ class _LoginParentScreenState extends State<LoginParentScreen> {
         backgroundColor: Colors.green,
         elevation: 0,
         title: const Text(
-          "تسجيل دخول ولي الأمر",
+          " تسجيل دخول ولي الأمر والوكيل",
           style: TextStyle(
             color: Colors.white,
             fontSize: 22,
@@ -136,7 +136,7 @@ class _LoginParentScreenState extends State<LoginParentScreen> {
               height: 180,
             ),
             const SizedBox(height: 30),
-            _buildInputField(_idController, 'رقم ولي الأمر', Icons.person),
+            _buildInputField(_idController, ' رقم الهوية  ', Icons.person),
             const SizedBox(height: 10),
             _buildInputField(
               _passwordController,

@@ -1,12 +1,12 @@
 import 'dart:math';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
+import 'package:mut6/widgets/custom_button_auth.dart' show CustomButtonAuth;
 
-import 'widgets/custom_button.dart';
-import 'widgets/custom_button_auth.dart';
-import 'widgets/custom_text_field.dart';
+import 'widgets/custom_text_field.dart' show CustomTextField;
 
 class AddTeacherScreen extends StatelessWidget {
   final TextEditingController nameController = TextEditingController();
@@ -15,6 +15,10 @@ class AddTeacherScreen extends StatelessWidget {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController specialtyController = TextEditingController();
 
+  // تعريف الألوان المستخدمة
+  final Color _iconColor = const Color(
+    0xFF007AFF,
+  ); // أزرق مشابه للون iOS الافتراضي
   final String senderEmail = "8ffaay01@gmail.com";
   final String senderPassword = "urwn frcb fzug ucyz"; // App Password
 
@@ -53,6 +57,7 @@ class AddTeacherScreen extends StatelessWidget {
     String email = emailController.text.trim();
     String specialty = specialtyController.text.trim();
 
+    // التحقق من أن جميع الحقول ممتلئة
     if ([name, id, phone, email, specialty].any((element) => element.isEmpty)) {
       showSnackBar(context, "يجب ملء جميع الحقول قبل الإضافة");
       return;
@@ -74,11 +79,24 @@ class AddTeacherScreen extends StatelessWidget {
       return;
     }
 
-    // التحقق من صيغة البريد
+    // التحقق من صيغة البريد الإلكتروني
     if (!RegExp(
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$',
     ).hasMatch(email)) {
       showSnackBar(context, "البريد الإلكتروني غير صحيح");
+      return;
+    }
+
+    // التحقق من طول رقم المعلم (10 أرقام)
+    final idRegex = RegExp(r'^\d{10}$');
+    if (!idRegex.hasMatch(id)) {
+      showSnackBar(context, "رقم المعلم يجب أن يتكون من 10 أرقام فقط");
+      return;
+    }
+
+    // التحقق من أن التخصص غير فارغ
+    if (specialty.isEmpty) {
+      showSnackBar(context, "يرجى إدخال التخصص");
       return;
     }
 
@@ -98,6 +116,8 @@ class AddTeacherScreen extends StatelessWidget {
         'email': email,
         'specialty': specialty,
         'password': password,
+        'schoolId': FirebaseAuth.instance.currentUser!.uid,
+
         'createdAt': Timestamp.now(),
       });
 
@@ -107,6 +127,7 @@ class AddTeacherScreen extends StatelessWidget {
         "تمت إضافة المعلم بنجاح، وتم إرسال كلمة المرور عبر البريد",
       );
 
+      // مسح الحقول بعد الإضافة
       nameController.clear();
       idController.clear();
       phoneController.clear();
@@ -256,30 +277,35 @@ class AddTeacherScreen extends StatelessWidget {
               controller: nameController,
               icon: Icons.person,
               hintText: "اسم المعلم",
+              iconColor: _iconColor, // لون الأيقونة
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: idController,
               icon: Icons.badge,
               hintText: "رقم المعلم",
+              iconColor: _iconColor, // لون الأيقونة
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: phoneController,
               icon: Icons.phone,
               hintText: "رقم الهاتف",
+              iconColor: _iconColor, // لون الأيقونة
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: emailController,
               icon: Icons.email,
               hintText: "البريد الإلكتروني",
+              iconColor: _iconColor, // لون الأيقونة
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: specialtyController,
               icon: Icons.school,
               hintText: "التخصص",
+              iconColor: _iconColor, // لون الأيقونة
             ),
             SizedBox(height: 20),
             CustomButtonAuth(

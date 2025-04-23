@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mut6/home_screen.dart';
-//import 'package:map/screens/login_screen.dart'; // استيراد صفحة تسجيل الدخول
 
 class TeacherCustomDrawer extends StatelessWidget {
   Future<void> _signOut(BuildContext context) async {
@@ -26,12 +25,18 @@ class TeacherCustomDrawer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // مسافة صغيرة في الأعلى لتجنب أن يكون الخيار في أعلى الشاشة مباشرةً
+          const SizedBox(height: 70),
+
+          // خيار تسجيل الخروج في الأعلى ولكن مع مسافة
           drawerItem(
             title: "تسجيل خروج",
             icon: Icons.logout,
             onTap: () => _signOut(context),
           ),
-          const SizedBox(height: 20),
+
+          // يمكنك إضافة المزيد من الخيارات هنا إذا كنت بحاجة
+          const SizedBox(height: 10), // مسافة صغيرة بين الخيارات
         ],
       ),
     );

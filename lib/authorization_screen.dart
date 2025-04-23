@@ -1,14 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // لإدارة المصادقة
-import 'package:cloud_firestore/cloud_firestore.dart'; // لإدارة Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class AuthorizationScreen extends StatelessWidget {
-  final String studentId; // معرف الطالب
+import '../widgets/custom_text_field.dart';
+import 'widgets/custom_button_auth.dart'
+    show CustomButtonAuth; // لإدارة Firestore
+
+class AuthorizationScreen extends StatefulWidget {
+  final String guardianId; // معرف ولي الأمر المسجل
+  const AuthorizationScreen({Key? key, required this.guardianId})
+    : super(key: key);
+
+  @override
+  _AuthorizationScreenState createState() => _AuthorizationScreenState();
+}
+
+class _AuthorizationScreenState extends State<AuthorizationScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController idController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  AuthorizationScreen({super.key, required this.studentId});
+  List<Map<String, dynamic>> allStudents = []; // جميع الطلاب المتاحين
+  List<Map<String, dynamic>> selectedStudents = []; // الطلاب المختارين
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAvailableStudents(widget.guardianId);
+  }
+
+  // دالة لجلب جميع الطلاب المرتبطين بوالي الأمر
+  Future<void> _fetchAvailableStudents(String guardianId) async {
+    try {
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('students')
+              .where('guardianId', isEqualTo: guardianId)
+              .get();
+      setState(() {
+        allStudents =
+            querySnapshot.docs.map((doc) {
+              return {
+                "id": doc['id'],
+                "name": doc['name'],
+                "schoolClass": doc['schoolClass'],
+                "stage": doc['stage'],
+              };
+            }).toList();
+      });
+    } catch (e) {
+      print("❌ خطأ أثناء جلب بيانات الطلاب: $e");
+    }
+  }
+
+  // دالة لإضافة الطالب إلى القائمة المختارة
+  void _addStudent(Map<String, dynamic> student) {
+    setState(() {
+      if (!selectedStudents.contains(student)) {
+        selectedStudents.add(student);
+      }
+    });
+  }
+
+  // دالة لإزالة الطالب من القائمة المختارة
+  void _removeStudent(Map<String, dynamic> student) {
+    setState(() {
+      selectedStudents.remove(student);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,22 +90,57 @@ class AuthorizationScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 40), // يبعد الحقول عن بداية الصفحة
-
             CustomTextField(
               controller: nameController,
               icon: Icons.person,
-              hintText: 'اسم الموكل',
+              hintText: 'اسم الوكيل',
+              iconColor: Colors.blue,
             ),
             CustomTextField(
               controller: idController,
               icon: Icons.badge,
-              hintText: 'رقم الموكل',
+              hintText: 'رقم الهوية',
+              iconColor: Colors.blue,
             ),
             CustomTextField(
               controller: passwordController,
               icon: Icons.lock,
               hintText: 'كلمة المرور',
+              iconColor: Colors.blue,
+
               obscureText: true,
+            ),
+            const SizedBox(height: 20),
+            Text(
+              "الطلاب المختارون:",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView.builder(
+                itemCount: allStudents.length,
+                itemBuilder: (context, index) {
+                  final student = allStudents[index];
+                  bool isSelected = selectedStudents.contains(student);
+                  return ListTile(
+                    title: Text(student["name"]),
+                    subtitle: Text(
+                      "المرحلة: ${student["stage"]}, الصف: ${student["schoolClass"]}",
+                    ),
+                    trailing: Checkbox(
+                      value: isSelected,
+                      onChanged: (value) {
+                        if (value == true) {
+                          _addStudent(student);
+                        } else {
+                          _removeStudent(student);
+                        }
+                      },
+                      activeColor: const Color.fromARGB(255, 1, 113, 189),
+                    ),
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 40), // يبعد الزر عن الحقول
             Center(
@@ -55,7 +149,7 @@ class AuthorizationScreen extends StatelessWidget {
                 child: CustomButtonAuth(
                   title: 'تسجيل',
                   onPressed: () async {
-                    if (_validateFields(context)) {
+                    if (await _validateFields(context)) {
                       try {
                         // إنشاء حساب جديد باستخدام Firebase Authentication
                         final UserCredential userCredential = await FirebaseAuth
@@ -65,21 +159,32 @@ class AuthorizationScreen extends StatelessWidget {
                                   "${idController.text}@example.com", // استخدام رقم الموكل كبريد إلكتروني
                               password: passwordController.text,
                             );
+                        // استخراج معرف Firebase (uid) ليكون هو agentId
+                        final String agentId = userCredential.user!.uid;
 
                         // حفظ بيانات الحساب في Firestore
                         await FirebaseFirestore.instance
                             .collection('Authorizations')
-                            .doc(
-                              userCredential.user!.uid,
-                            ) // استخدام معرف المستخدم كمفتاح
+                            .doc(agentId)
                             .set({
                               'name': nameController.text,
                               'id': idController.text,
-                              'password':
-                                  passwordController
-                                      .text, // يمكنك تخزين كلمة المرور بشكل مشفر إذا كنت تحتاج الأمان العالي
-                              'studentId': studentId,
+                              'password': passwordController.text,
+                              'guardianId': widget.guardianId, // معرف ولي الأمر
                             });
+
+                        // حفظ بيانات الطلاب المختارين مع حساب الوكيل
+                        for (var student in selectedStudents) {
+                          await FirebaseFirestore.instance
+                              .collection('AgentStudents')
+                              .add({
+                                'agentId': agentId, // معرف الوكيل (uid)
+                                'studentId': student["id"], // معرف الطالب
+                                'studentName': student["name"], // اسم الطالب
+                                'stage': student["stage"], // المرحلة
+                                'schoolClass': student["schoolClass"], // الصف
+                              });
+                        }
 
                         // عرض رسالة نجاح
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -105,13 +210,27 @@ class AuthorizationScreen extends StatelessWidget {
     );
   }
 
+  // دالة للتحقق من أن الـ ID غير مستخدم مسبقًا
+  Future<bool> _isIdAvailable(String id) async {
+    try {
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('Authorizations')
+              .where('id', isEqualTo: id)
+              .get();
+      return querySnapshot.docs.isEmpty;
+    } catch (e) {
+      print("حدث خطأ أثناء التحقق من الـ ID: $e");
+      return false;
+    }
+  }
+
   // دالة للتحقق من صحة الحقول
-  bool _validateFields(BuildContext context) {
+  Future<bool> _validateFields(BuildContext context) async {
     final name = nameController.text.trim();
     final id = idController.text.trim();
     final password = passwordController.text.trim();
 
-    // التحقق من اسم الموكل
     if (name.isEmpty || !name.contains(" ")) {
       ScaffoldMessenger.of(
         context,
@@ -119,18 +238,21 @@ class AuthorizationScreen extends StatelessWidget {
       return false;
     }
 
-    // التحقق من رقم الموكل
-    if (id.isEmpty ||
-        int.tryParse(id) == null ||
-        id.length < 8 ||
-        id.length > 15) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("يرجى إدخال رقم موكل صالح (8-15 رقمًا)")),
-      );
+    if (id.isEmpty || int.tryParse(id) == null || id.length < 8) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("يرجى إدخال رقم هوية صالح")));
       return false;
     }
 
-    // التحقق من كلمة المرور
+    final isIdAvailable = await _isIdAvailable(id);
+    if (!isIdAvailable) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("رقم الموكل هذا مستخدم مسبقًا")));
+      return false;
+    }
+
     final passwordRegex = RegExp(
       r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,20}$',
     );
@@ -138,14 +260,13 @@ class AuthorizationScreen extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            "كلمة المرور يجب أن تحتوي على أحرف كبيرة وصغيرة وأرقام، وطولها بين 8 و20 حرفًا",
+            "كلمة المرور يجب أن تحتوي على أحرف كبيرة وصغيرة وأرقام",
           ),
         ),
       );
       return false;
     }
 
-    // إذا مررت جميع الفحوصات
     return true;
   }
 
@@ -154,64 +275,6 @@ class AuthorizationScreen extends StatelessWidget {
     nameController.clear();
     idController.clear();
     passwordController.clear();
-  }
-}
-
-// ودجة مخصصة لحقل النص
-class CustomTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final IconData icon;
-  final String hintText;
-  final bool obscureText;
-
-  CustomTextField({
-    required this.controller,
-    required this.icon,
-    required this.hintText,
-    this.obscureText = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12), // مسافة بين الحقول
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.indigo),
-          hintText: hintText,
-          filled: true,
-          fillColor: Colors.grey[200], // خلفية رمادية للحقل فقط
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ودجة مخصصة للزر
-class CustomButtonAuth extends StatelessWidget {
-  final void Function()? onPressed;
-  final String title;
-
-  const CustomButtonAuth({super.key, this.onPressed, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 170, // عرض الزر
-      child: MaterialButton(
-        height: 45,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-        color: const Color.fromARGB(255, 1, 113, 189),
-        textColor: Colors.white,
-        onPressed: onPressed,
-        child: Text(title, style: TextStyle(fontSize: 18)),
-      ),
-    );
+    selectedStudents.clear();
   }
 }

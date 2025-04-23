@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:mut6/PreviousRequestsScreen.dart';
+import 'package:mut6/authorization_screen.dart';
 import 'package:mut6/children_screen.dart';
+import 'package:mut6/teacher_previous_requests_screen.dart';
 import 'package:mut6/widgets/guardian_custom_drawer.dart';
 
 class GuardianScreen extends StatelessWidget {
@@ -104,16 +105,13 @@ class GuardianScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => ChildrenScreen(
-                          guardianId: guardianId,
-                          serviceType:
-                              "delegation", // تحديد نوع الخدمة (طلب النداء)
+                        (context) => AuthorizationScreen(
+                          guardianId: guardianId, // تمرير معرف ولي الأمر
                         ),
                   ),
                 );
               },
             ),
-
             const SizedBox(height: 10),
             CustomButton(
               title: "الطلبات السابقة",
@@ -121,11 +119,7 @@ class GuardianScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (context) => ChildrenScreen(
-                          guardianId: 'guardian_id_value', // تمرير المعرف هنا
-                          serviceType: 'attendance', // نوع الخدمة
-                        ),
+                    builder: (context) => PreviousRequestsScreen(),
                   ),
                 );
               },

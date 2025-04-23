@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mut6/PasswordRecoveryScreen.dart';
 import 'package:mut6/admin_screen.dart';
 import 'package:mut6/home_screen.dart';
-import 'package:mut6/teacher_screen.dart'; // استيراد شاشة HomeScreen
+import 'package:mut6/teacher_screen.dart';
 
 class LoginEmployeeScreen extends StatefulWidget {
   const LoginEmployeeScreen({Key? key}) : super(key: key);

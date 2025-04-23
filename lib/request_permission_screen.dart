@@ -79,16 +79,30 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
               CustomTextField(
                 controller: reasonController,
                 hintText: 'اكتب السبب هنا',
-                icon: Icons.edit,
               ),
               CustomLabel(text: 'التاريخ'),
               InkWell(
                 onTap: () async {
+                  final now = DateTime.now();
                   final DateTime? pickedDate = await showDatePicker(
                     context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(2000),
+                    initialDate: now,
+                    firstDate: now, // يمنع اختيار تواريخ سابقة
                     lastDate: DateTime(2100),
+                    builder: (BuildContext context, Widget? child) {
+                      return Theme(
+                        data: ThemeData.light().copyWith(
+                          colorScheme: ColorScheme.light(
+                            primary: const Color.fromARGB(255, 11, 40, 66),
+                            onPrimary: const Color.fromARGB(255, 221, 227, 230),
+                            surface: const Color.fromARGB(255, 230, 232, 234),
+                            onSurface: Colors.black,
+                          ),
+                          dialogBackgroundColor: Colors.white,
+                        ),
+                        child: child!,
+                      );
+                    },
                   );
                   if (pickedDate != null) {
                     setState(() {
@@ -111,11 +125,44 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
               CustomLabel(text: 'الوقت'),
               InkWell(
                 onTap: () async {
+                  final now = DateTime.now();
                   final TimeOfDay? pickedTime = await showTimePicker(
                     context: context,
                     initialTime: TimeOfDay.now(),
+                    builder: (BuildContext context, Widget? child) {
+                      return Theme(
+                        data: ThemeData.light().copyWith(
+                          colorScheme: ColorScheme.light(
+                            primary: const Color.fromARGB(255, 17, 34, 49),
+                            onPrimary: const Color.fromARGB(255, 229, 232, 235),
+                            surface: const Color.fromARGB(255, 232, 234, 236),
+                            onSurface: Colors.black,
+                          ),
+                          dialogBackgroundColor: Colors.white,
+                        ),
+                        child: child!,
+                      );
+                    },
                   );
                   if (pickedTime != null) {
+                    // التحقق من أن الوقت المختار ليس قبل الوقت الحالي
+                    final selectedDateTime = DateTime(
+                      selectedDate?.year ?? now.year,
+                      selectedDate?.month ?? now.month,
+                      selectedDate?.day ?? now.day,
+                      pickedTime.hour,
+                      pickedTime.minute,
+                    );
+                    if (selectedDateTime.isBefore(now)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            "لا يمكنك اختيار وقت قبل الوقت الحالي.",
+                          ),
+                        ),
+                      );
+                      return;
+                    }
                     setState(() {
                       selectedTime = pickedTime;
                     });
@@ -172,10 +219,11 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
                   onPressed: () async {
                     if (_validateFields()) {
                       try {
-                        final stage = "ثالث ثانوي";
-                        final schoolClass = "3";
+                        final stage =
+                            "ثالث ثانوي"; // استبدل هذه القيمة بالقيمة الفعلية
+                        final schoolClass =
+                            "3"; // استبدل هذه القيمة بالقيمة الفعلية
                         final grade = "$stage/$schoolClass";
-
                         await FirebaseFirestore.instance.collection('excuses').add({
                           'studentId': widget.studentId,
                           'studentName': widget.studentName,
@@ -194,7 +242,6 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
                           'grade': grade,
                           'status': 'pending',
                         });
-
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text("تم إرسال الطلب بنجاح!")),
                         );
@@ -208,7 +255,6 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
                       }
                     }
                   },
-                  color: Colors.black,
                 ),
               ),
             ],
@@ -251,13 +297,8 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
 class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
-  final IconData? icon;
 
-  CustomTextField({
-    required this.controller,
-    required this.hintText,
-    this.icon,
-  });
+  CustomTextField({required this.controller, required this.hintText});
 
   @override
   Widget build(BuildContext context) {
@@ -268,7 +309,6 @@ class CustomTextField extends StatelessWidget {
         textAlign: TextAlign.right,
         decoration: InputDecoration(
           hintText: hintText,
-          prefixIcon: icon != null ? Icon(icon, color: Colors.indigo) : null,
           filled: true,
           fillColor: Colors.grey[200],
           border: OutlineInputBorder(
@@ -284,14 +324,8 @@ class CustomTextField extends StatelessWidget {
 class CustomButtonAuth extends StatelessWidget {
   final void Function()? onPressed;
   final String title;
-  final Color color;
 
-  const CustomButtonAuth({
-    super.key,
-    this.onPressed,
-    required this.title,
-    required this.color,
-  });
+  const CustomButtonAuth({super.key, this.onPressed, required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +333,7 @@ class CustomButtonAuth extends StatelessWidget {
       height: 50,
       minWidth: 200,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-      color: color,
+      color: const Color.fromARGB(255, 1, 113, 189),
       textColor: Colors.white,
       onPressed: onPressed,
       child: Text(title, style: TextStyle(fontSize: 20)),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class MapScreen extends StatefulWidget {
   @override
@@ -15,12 +16,26 @@ class _MapScreenState extends State<MapScreen> {
   // دالة لتحديث الموقع في Firebase
   Future<void> _updateLocationInFirebase() async {
     try {
+      // التحقق من تسجيل الدخول
+      if (FirebaseAuth.instance.currentUser == null) {
+        print("⚠️ المستخدم غير مسجل الدخول.");
+        return;
+      }
+
+      // الحصول على المعرف الفعلي للمستخدم
+      final String currentUserId = FirebaseAuth.instance.currentUser!.uid;
+
       // الحصول على مرجع للمستند الذي يحتوي على بيانات المدرسة
       final schoolRef = FirebaseFirestore.instance
           .collection('schools')
-          .doc(
-            '4U1JDQRkOXQ1WWSwAwvWn6EY41X2',
-          ); // استبدل "schoolID" بمعرف المدرسة الخاص بك
+          .doc(currentUserId);
+
+      // التحقق من وجود المستند
+      final docSnapshot = await schoolRef.get();
+      if (!docSnapshot.exists) {
+        print("⚠️ المستند الخاص بالمدرسة غير موجود في Firestore.");
+        return;
+      }
 
       // تحديث الموقع في قاعدة البيانات
       await schoolRef.update({

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:mut6/login_screen.dart';
 import '../widgets/custom_button.dart';
 import 'login_employee_screen.dart'; // استيراد شاشة الموظفين
+//import 'login_school_screen.dart'; // استيراد شاشة المدرسة
 import 'login_parent_screen.dart'; // استيراد شاشة أولياء الأمور
+import 'registerr_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -53,7 +55,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 10),
               // زر "ولي أمر الطالب"
               CustomButton(
-                title: "ولي أمر الطالب",
+                title: " ولي الأمر والوكيل",
                 onPressed: () {
                   Navigator.push(
                     context,

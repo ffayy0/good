@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:mut6/PreviousRequestsScreen.dart';
-import 'package:mut6/class_screen.dart';
+import 'package:mut6/aclass_screen.dart';
+import 'package:mut6/teacher_previous_requests_screen.dart';
 import 'package:mut6/widgets/teacher_custom_drawer.dart';
 import 'alert_screen.dart'; // استيراد صفحة AlertScreen
 

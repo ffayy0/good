@@ -19,13 +19,20 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
     super.dispose();
   }
 
-  void registerAttendance(String studentId) async {
+  // دالة لتسجيل الحضور مع حالة محددة
+  void registerAttendance(String studentId, String status) async {
     try {
       FirebaseFirestore firestore = FirebaseFirestore.instance;
-      await firestore.collection('attendance').add({
-        'student_id': studentId,
-        'timestamp': FieldValue.serverTimestamp(), // تاريخ ووقت التسجيل
-      });
+
+      // تحديث أو إضافة حالة الحضور في Firestore
+      await firestore.collection('attendance').doc(studentId).set(
+        {
+          'student_id': studentId,
+          'status': status, // حالة الحضور (حضور/غياب/تأخير)
+          'timestamp': FieldValue.serverTimestamp(), // تاريخ ووقت التسجيل
+        },
+        SetOptions(merge: true),
+      ); // استخدام merge لتجنب الكتابة فوق البيانات السابقة
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("تم تسجيل الحضور للطالب: $studentId")),
@@ -61,7 +68,71 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                         scannedId,
                       ); // إضافة الباركود إلى المجموعة
                     });
-                    registerAttendance(scannedId); // تسجيل الحضور مباشرة
+
+                    // عرض نافذة حوار لاختيار حالة الحضور
+                    showDialog(
+                      context: context,
+                      builder: (context) {
+                        String selectedStatus = "حضور"; // الحالة الافتراضية
+
+                        return AlertDialog(
+                          title: Text("اختر حالة الحضور"),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                title: Text("حضور"),
+                                leading: Radio<String>(
+                                  value: "حضور",
+                                  groupValue: selectedStatus,
+                                  onChanged: (value) {
+                                    setState(() => selectedStatus = value!);
+                                  },
+                                ),
+                              ),
+                              ListTile(
+                                title: Text("غياب"),
+                                leading: Radio<String>(
+                                  value: "غياب",
+                                  groupValue: selectedStatus,
+                                  onChanged: (value) {
+                                    setState(() => selectedStatus = value!);
+                                  },
+                                ),
+                              ),
+                              ListTile(
+                                title: Text("تأخير"),
+                                leading: Radio<String>(
+                                  value: "تأخير",
+                                  groupValue: selectedStatus,
+                                  onChanged: (value) {
+                                    setState(() => selectedStatus = value!);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context); // إغلاق النافذة
+                              },
+                              child: Text("إلغاء"),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.pop(context); // إغلاق النافذة
+                                registerAttendance(
+                                  scannedId,
+                                  selectedStatus,
+                                ); // تسجيل الحضور
+                              },
+                              child: Text("تأكيد"),
+                            ),
+                          ],
+                        );
+                      },
+                    );
                   }
                 });
               },

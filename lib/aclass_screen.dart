@@ -1,6 +1,7 @@
 // class_screen.dart
 import 'package:flutter/material.dart';
-import 'select_class_screen.dart'; // استيراد صفحة اختيار الكلاس
+
+import 'select_class_screen.dart';
 
 class ClassScreen extends StatelessWidget {
   @override

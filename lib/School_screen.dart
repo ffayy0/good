@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mut6/RequestsListScreen.dart';
-import 'package:mut6/widgets/custom_button.dart';
-
-import 'widgets/custom_button_auth.dart';
+import 'package:mut6/widgets/custom_button_auth.dart';
 
 class SchoolScreen extends StatelessWidget {
   final String schoolName;
@@ -95,9 +93,7 @@ class SchoolScreen extends StatelessWidget {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => RequestsListScreen(),
-                        ),
+                        MaterialPageRoute(builder: (context) => CallScreen()),
                       );
                     },
                   ),

@@ -1,11 +1,10 @@
 import 'dart:math';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
-
-import 'widgets/custom_button.dart';
 import 'widgets/custom_button_auth.dart';
 import 'widgets/custom_text_field.dart';
 
@@ -66,11 +65,19 @@ class AddAdminScreen extends StatelessWidget {
     String phone = phoneController.text.trim();
     String email = emailController.text.trim();
 
-    if (name.isEmpty || id.isEmpty || phone.isEmpty || email.isEmpty) {
+    // التحقق من أن جميع الحقول مملوءة
+    if ([name, id, phone, email].any((element) => element.isEmpty)) {
       showSnackBar(context, "يجب ملء جميع الحقول قبل الإضافة");
       return;
     }
 
+    // التحقق من صيغة البريد الإلكتروني
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$').hasMatch(email)) {
+      showSnackBar(context, "البريد الإلكتروني غير صحيح.");
+      return;
+    }
+
+    // التحقق من رقم الجوال
     final phoneRegex = RegExp(r'^05\d{8}$');
     if (!phoneRegex.hasMatch(phone)) {
       showSnackBar(
@@ -80,6 +87,14 @@ class AddAdminScreen extends StatelessWidget {
       return;
     }
 
+    // التحقق من طول رقم الإداري (يجب أن يكون مكونًا من 10 أرقام)
+    final idRegex = RegExp(r'^\d{10}$');
+    if (!idRegex.hasMatch(id)) {
+      showSnackBar(context, "رقم الإداري يجب أن يتكون من 10 أرقام فقط.");
+      return;
+    }
+
+    // التحقق من عدم تكرار البيانات
     bool isDuplicate = await isAdminDuplicate(id, email, phone);
     if (isDuplicate) {
       showSnackBar(context, "هذا الإداري مسجل مسبقًا، لا يمكن تكرار البيانات.");
@@ -94,6 +109,8 @@ class AddAdminScreen extends StatelessWidget {
         'phone': phone,
         'email': email,
         'password': password,
+        'role': 'assistant',
+        'schoolId': FirebaseAuth.instance.currentUser!.uid,
         'createdAt': Timestamp.now(),
       });
 
@@ -103,6 +120,8 @@ class AddAdminScreen extends StatelessWidget {
         context,
         "تمت إضافة الإداري بنجاح، وتم إرسال كلمة المرور عبر البريد",
       );
+
+      // مسح الحقول بعد الإضافة
       nameController.clear();
       idController.clear();
       phoneController.clear();
@@ -194,24 +213,28 @@ class AddAdminScreen extends StatelessWidget {
               controller: nameController,
               icon: Icons.person,
               hintText: "اسم الإداري",
+              iconColor: Colors.blue,
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: idController,
               icon: Icons.badge,
               hintText: "رقم الإداري",
+              iconColor: Colors.blue,
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: phoneController,
               icon: Icons.phone,
               hintText: "رقم الهاتف",
+              iconColor: Colors.blue,
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: emailController,
               icon: Icons.email,
               hintText: "البريد الإلكتروني",
+              iconColor: Colors.blue,
             ),
             SizedBox(height: 20),
             CustomButtonAuth(
