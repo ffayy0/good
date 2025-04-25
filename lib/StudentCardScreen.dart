@@ -118,7 +118,6 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
               "بيانات تسجيل الدخول الخاصة بك:\n"
               "رقم ولي الأمر: $parentId\n"
               "كلمة المرور: $password\n\n"
-              "يرجى تغيير كلمة المرور بعد تسجيل الدخول.\n\n"
               "تحياتنا، فريق متابع.";
 
     try {

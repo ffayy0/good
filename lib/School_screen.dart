@@ -86,6 +86,14 @@ class SchoolScreen extends StatelessWidget {
                       Navigator.pushNamed(context, '/MapScreen');
                     },
                   ),
+
+                  const SizedBox(height: 35),
+                  CustomButtonAuth(
+                    title: "وقت الحضور الصباحي",
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/SchoolDashboardScreen');
+                    },
+                  ),
                   const SizedBox(height: 35),
                   // زر جديد لعرض طلبات النداء
                   CustomButtonAuth(

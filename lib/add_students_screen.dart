@@ -22,7 +22,7 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
   final TextEditingController _phoneController = TextEditingController();
 
   // القوائم الخاصة بالمرحلة الدراسية والصف
-  final List<String> _stages = ['أولى ثانوي', 'ثاني ثانوي', 'ثالث ثانوي'];
+  final List<String> _stages = ['أولى ابتدائى', 'ثاني ابتدائى', 'ثالث ابتدائى'];
   final List<String> _classes = ['1', '2', '3', '4', '5', '6'];
 
   String? _selectedStage; // المرحلة الدراسية المختارة

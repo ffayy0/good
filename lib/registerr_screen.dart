@@ -159,6 +159,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'email': email,
             'stage': selectedStage,
             'createdAt': DateTime.now(),
+            'attendanceStartTime':
+                '07:30', // ✅ إضافة حقل الوقت كقيمة فاضية عند التسجيل
           });
 
       // ✅ إرسال البريد الإلكتروني بعد إنشاء الحساب

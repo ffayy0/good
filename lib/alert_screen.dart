@@ -25,16 +25,19 @@ class AlertScreen extends StatelessWidget {
                   CustomButtonAuth(
                     title: "إلغاء",
                     onPressed: () {
-                      Navigator.pop(context);
+                      Navigator.pop(context); // العودة إلى الصفحة السابقة
                     },
                   ),
                   SizedBox(width: 15),
                   CustomButtonAuth(
                     title: "إرسال",
                     onPressed: () {
+                      // عرض رسالة التأكيد
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text("تم إرسال التنبيه")),
                       );
+                      // العودة إلى الصفحة السابقة
+                      Navigator.pop(context);
                     },
                   ),
                 ],

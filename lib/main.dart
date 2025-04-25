@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart'; // استيراد Firebase Core
 import 'package:flutter/material.dart';
 import 'package:mut6/MapScreen.dart';
+import 'package:mut6/SchoolDashboardScreen.dart';
 import 'package:mut6/School_screen.dart';
 import 'package:mut6/TeacherProvider.dart';
 import 'package:mut6/WelcomeScreen.dart';
@@ -44,6 +45,9 @@ class MyApp extends StatelessWidget {
         '/AddAdminScreen': (context) => AddAdminScreen(), // شاشة إضافة مشرف
         '/AdminScreen': (context) => AdminListScreen(), // شاشة قائمة المشرفين
         '/MapScreen': (context) => MapScreen(), // إذا كنت تستخدم شاشة الخريطة
+        '/SchoolDashboardScreen':
+            (context) => SchoolDashboardScreen(), // إذا كنت تستخدم شاشة الخريطة
+
         '/map_picker': (context) => MapPickerScreen(),
 
         // يمكنك إضافة أي مسارات أخرى إذا كنت بحاجة إليها

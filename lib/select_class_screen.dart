@@ -1,4 +1,3 @@
-// select_class_screen.dart
 import 'package:flutter/material.dart';
 import 'students_list_screen.dart'; // استيراد صفحة عرض الطلاب
 
@@ -56,11 +55,12 @@ class SelectClassScreen extends StatelessWidget {
   }
 }
 
+// زر مخصص لعرض الصفوف
 class CustomButtonAuth extends StatelessWidget {
-  final void Function()? onPressed;
   final String title;
+  final VoidCallback? onPressed;
 
-  const CustomButtonAuth({super.key, this.onPressed, required this.title});
+  const CustomButtonAuth({required this.title, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {

@@ -84,18 +84,6 @@ class AdminScreen extends StatelessWidget {
 
               const SizedBox(height: 35),
               CustomButton(
-                title: " الطلاب",
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => TeacherListScreen(),
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 35),
-              CustomButton(
                 title: "الطلبات السابقة",
                 onPressed: () {
                   Navigator.push(

@@ -220,7 +220,7 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
                     if (_validateFields()) {
                       try {
                         final stage =
-                            "ثالث ثانوي"; // استبدل هذه القيمة بالقيمة الفعلية
+                            "ثالث ابتدائى"; // استبدل هذه القيمة بالقيمة الفعلية
                         final schoolClass =
                             "3"; // استبدل هذه القيمة بالقيمة الفعلية
                         final grade = "$stage/$schoolClass";

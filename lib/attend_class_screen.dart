@@ -22,39 +22,39 @@ class ClassScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             CustomButton(
-              title: "أولى ثانوي",
+              title: "أولى ابتدائى",
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => SelectClassScreen(stage: "أولى ثانوي"),
+                        (context) => SelectClassScreen(stage: "أولى ابتدائى"),
                   ),
                 );
               },
             ),
             SizedBox(height: 40), // المسافة بين الأزرار
             CustomButton(
-              title: "ثاني ثانوي",
+              title: "ثاني ابتدائى",
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => SelectClassScreen(stage: "ثاني ثانوي"),
+                        (context) => SelectClassScreen(stage: "ثاني ابتدائى"),
                   ),
                 );
               },
             ),
             SizedBox(height: 40), // المسافة بين الأزرار
             CustomButton(
-              title: "ثالث ثانوي",
+              title: "ثالث ابتدائى",
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder:
-                        (context) => SelectClassScreen(stage: "ثالث ثانوي"),
+                        (context) => SelectClassScreen(stage: "ثالث ابتدائى"),
                   ),
                 );
               },
