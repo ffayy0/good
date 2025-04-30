@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
+import 'lib/global_data.dart';
+
 class CallScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -19,6 +21,10 @@ class CallScreen extends StatelessWidget {
         stream:
             FirebaseFirestore.instance
                 .collection('pikup_call')
+                .where(
+                  'schoolId',
+                  isEqualTo: currentUserSchoolId,
+                ) // 🔥 فلترة بالـ schoolId
                 .orderBy('timestamp', descending: true)
                 .snapshots(),
         builder: (context, snapshot) {
@@ -46,12 +52,10 @@ class CallScreen extends StatelessWidget {
               final timestamp = data['timestamp'] as Timestamp;
               final status = data['status'];
 
-              // تنسيق التاريخ والوقت
               final formattedDate = DateFormat(
                 'yyyy-MM-dd hh:mm a',
               ).format(timestamp.toDate());
 
-              // تحديد اللون بناءً على الحالة
               Color statusColor;
               switch (status) {
                 case 'جديد':
@@ -61,16 +65,14 @@ class CallScreen extends StatelessWidget {
                   statusColor = Colors.grey;
                   break;
                 default:
-                  statusColor = Colors.red; // حالة غير متوقعة
+                  statusColor = Colors.red;
               }
 
-              // التحقق من مرور 5 دقائق
               final currentTime = DateTime.now();
               final elapsedTime =
                   currentTime.difference(timestamp.toDate()).inMinutes;
 
               if (elapsedTime >= 5 && status == 'جديد') {
-                // تحديث الحالة إلى "منتهي" إذا مر 5 دقائق
                 FirebaseFirestore.instance
                     .collection('pikup_call')
                     .doc(request.id)
@@ -92,7 +94,6 @@ class CallScreen extends StatelessWidget {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // عرض اللون بناءً على الحالة
                       Container(
                         width: 12,
                         height: 12,
@@ -105,13 +106,11 @@ class CallScreen extends StatelessWidget {
                       PopupMenuButton<String>(
                         onSelected: (value) async {
                           if (value == 'update') {
-                            // تحديث الحالة إلى "منتهي"
                             await FirebaseFirestore.instance
                                 .collection('pikup_call')
                                 .doc(request.id)
                                 .update({'status': 'منتهي'});
                           } else if (value == 'delete') {
-                            // حذف الطلب
                             await FirebaseFirestore.instance
                                 .collection('pikup_call')
                                 .doc(request.id)
@@ -140,7 +139,6 @@ class CallScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // تحديث القائمة يدويًا
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("جارٍ تحديث القائمة...")),
           );

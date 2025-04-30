@@ -10,13 +10,13 @@ class CustomButtonAuth extends StatelessWidget {
 
   // البناء
   const CustomButtonAuth({
-    Key? key,
+    super.key,
     required this.title,
     required this.onPressed,
     this.color = const Color.fromARGB(255, 1, 113, 189), // لون افتراضي
     this.height = 60, // ارتفاع افتراضي
     this.minWidth = 260, // عرض أدنى افتراضي
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // لإدارة المصادقة
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
 import '../widgets/custom_text_field.dart';
-import 'widgets/custom_button_auth.dart'
-    show CustomButtonAuth; // لإدارة Firestore
+import 'widgets/custom_button_auth.dart';
 
 class AuthorizationScreen extends StatefulWidget {
   final String guardianId; // معرف ولي الأمر المسجل
-  const AuthorizationScreen({Key? key, required this.guardianId})
-    : super(key: key);
+
+  const AuthorizationScreen({super.key, required this.guardianId});
 
   @override
   _AuthorizationScreenState createState() => _AuthorizationScreenState();
@@ -22,14 +20,36 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
 
   List<Map<String, dynamic>> allStudents = []; // جميع الطلاب المتاحين
   List<Map<String, dynamic>> selectedStudents = []; // الطلاب المختارين
+  String? _schoolId; // معرف المدرسة للولي الأمر
 
   @override
   void initState() {
     super.initState();
+    _fetchSchoolId(); // جلب schoolId عند بداية الشاشة
     _fetchAvailableStudents(widget.guardianId);
   }
 
-  // دالة لجلب جميع الطلاب المرتبطين بوالي الأمر
+  Future<void> _fetchSchoolId() async {
+    try {
+      final parentQuery =
+          await FirebaseFirestore.instance
+              .collection('parents')
+              .where('id', isEqualTo: widget.guardianId)
+              .limit(1)
+              .get();
+
+      if (parentQuery.docs.isNotEmpty) {
+        setState(() {
+          _schoolId = parentQuery.docs.first['schoolId'];
+        });
+      } else {
+        print('❌ لم يتم العثور على ولي الأمر لجلب schoolId.');
+      }
+    } catch (e) {
+      print('❌ خطأ أثناء جلب schoolId: $e');
+    }
+  }
+
   Future<void> _fetchAvailableStudents(String guardianId) async {
     try {
       final querySnapshot =
@@ -37,6 +57,7 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
               .collection('students')
               .where('guardianId', isEqualTo: guardianId)
               .get();
+
       setState(() {
         allStudents =
             querySnapshot.docs.map((doc) {
@@ -53,7 +74,6 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
     }
   }
 
-  // دالة لإضافة الطالب إلى القائمة المختارة
   void _addStudent(Map<String, dynamic> student) {
     setState(() {
       if (!selectedStudents.contains(student)) {
@@ -62,11 +82,77 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
     });
   }
 
-  // دالة لإزالة الطالب من القائمة المختارة
   void _removeStudent(Map<String, dynamic> student) {
     setState(() {
       selectedStudents.remove(student);
     });
+  }
+
+  Future<bool> _isIdAvailable(String id) async {
+    try {
+      final querySnapshot =
+          await FirebaseFirestore.instance
+              .collection('Authorizations')
+              .where('id', isEqualTo: id)
+              .get();
+      return querySnapshot.docs.isEmpty;
+    } catch (e) {
+      print("❌ خطأ أثناء التحقق من الـ ID: $e");
+      return false;
+    }
+  }
+
+  Future<bool> _validateFields(BuildContext context) async {
+    final name = nameController.text.trim();
+    final id = idController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (name.isEmpty || !name.contains(" ")) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("يرجى إدخال اسم ثنائي صالح")));
+      return false;
+    }
+
+    if (id.isEmpty || int.tryParse(id) == null || id.length < 8) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("يرجى إدخال رقم هوية صالح")));
+      return false;
+    }
+
+    final isIdAvailable = await _isIdAvailable(id);
+    if (!isIdAvailable) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("رقم الموكل هذا مستخدم مسبقًا")));
+      return false;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("كلمة المرور يجب أن تكون 6 أحرف أو أكثر.")),
+      );
+      return false;
+    }
+
+    if (_schoolId == null || _schoolId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("لم يتم تحديد معرف المدرسة. لا يمكن تسجيل الموكل"),
+        ),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  void _clearFields() {
+    nameController.clear();
+    idController.clear();
+    passwordController.clear();
+    selectedStudents.clear();
   }
 
   @override
@@ -75,13 +161,11 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: Text('التوكيل', style: TextStyle(color: Colors.white)),
+        title: const Text('التوكيل', style: TextStyle(color: Colors.white)),
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context); // العودة إلى الصفحة السابقة
-          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(
@@ -89,7 +173,7 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const SizedBox(height: 40), // يبعد الحقول عن بداية الصفحة
+            const SizedBox(height: 40),
             CustomTextField(
               controller: nameController,
               icon: Icons.person,
@@ -107,7 +191,6 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
               icon: Icons.lock,
               hintText: 'كلمة المرور',
               iconColor: Colors.blue,
-
               obscureText: true,
             ),
             const SizedBox(height: 20),
@@ -142,27 +225,24 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 40), // يبعد الزر عن الحقول
+            const SizedBox(height: 30),
             Center(
               child: SizedBox(
-                width: 200, // جعل الزر بالوسط
+                width: 200,
                 child: CustomButtonAuth(
                   title: 'تسجيل',
                   onPressed: () async {
                     if (await _validateFields(context)) {
                       try {
-                        // إنشاء حساب جديد باستخدام Firebase Authentication
                         final UserCredential userCredential = await FirebaseAuth
                             .instance
                             .createUserWithEmailAndPassword(
-                              email:
-                                  "${idController.text}@example.com", // استخدام رقم الموكل كبريد إلكتروني
+                              email: "${idController.text}@example.com",
                               password: passwordController.text,
                             );
-                        // استخراج معرف Firebase (uid) ليكون هو agentId
+
                         final String agentId = userCredential.user!.uid;
 
-                        // حفظ بيانات الحساب في Firestore
                         await FirebaseFirestore.instance
                             .collection('Authorizations')
                             .doc(agentId)
@@ -170,31 +250,28 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
                               'name': nameController.text,
                               'id': idController.text,
                               'password': passwordController.text,
-                              'guardianId': widget.guardianId, // معرف ولي الأمر
+                              'guardianId': widget.guardianId,
+                              'schoolId': _schoolId ?? '',
                             });
 
-                        // حفظ بيانات الطلاب المختارين مع حساب الوكيل
                         for (var student in selectedStudents) {
                           await FirebaseFirestore.instance
                               .collection('AgentStudents')
                               .add({
-                                'agentId': agentId, // معرف الوكيل (uid)
-                                'studentId': student["id"], // معرف الطالب
-                                'studentName': student["name"], // اسم الطالب
-                                'stage': student["stage"], // المرحلة
-                                'schoolClass': student["schoolClass"], // الصف
+                                'agentId': agentId,
+                                'studentId': student["id"],
+                                'studentName': student["name"],
+                                'stage': student["stage"],
+                                'schoolClass': student["schoolClass"],
                               });
                         }
 
-                        // عرض رسالة نجاح
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text("تم تسجيل الحساب بنجاح")),
                         );
 
-                        // إعادة تهيئة الحقول
                         _clearFields();
                       } catch (e) {
-                        // عرض رسالة خطأ
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text("حدث خطأ أثناء التسجيل: $e")),
                         );
@@ -204,77 +281,10 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 30),
           ],
         ),
       ),
     );
-  }
-
-  // دالة للتحقق من أن الـ ID غير مستخدم مسبقًا
-  Future<bool> _isIdAvailable(String id) async {
-    try {
-      final querySnapshot =
-          await FirebaseFirestore.instance
-              .collection('Authorizations')
-              .where('id', isEqualTo: id)
-              .get();
-      return querySnapshot.docs.isEmpty;
-    } catch (e) {
-      print("حدث خطأ أثناء التحقق من الـ ID: $e");
-      return false;
-    }
-  }
-
-  // دالة للتحقق من صحة الحقول
-  Future<bool> _validateFields(BuildContext context) async {
-    final name = nameController.text.trim();
-    final id = idController.text.trim();
-    final password = passwordController.text.trim();
-
-    if (name.isEmpty || !name.contains(" ")) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("يرجى إدخال اسم ثنائي صالح")));
-      return false;
-    }
-
-    if (id.isEmpty || int.tryParse(id) == null || id.length < 8) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("يرجى إدخال رقم هوية صالح")));
-      return false;
-    }
-
-    final isIdAvailable = await _isIdAvailable(id);
-    if (!isIdAvailable) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("رقم الموكل هذا مستخدم مسبقًا")));
-      return false;
-    }
-
-    final passwordRegex = RegExp(
-      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,20}$',
-    );
-    if (!passwordRegex.hasMatch(password)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "كلمة المرور يجب أن تحتوي على أحرف كبيرة وصغيرة وأرقام",
-          ),
-        ),
-      );
-      return false;
-    }
-
-    return true;
-  }
-
-  // دالة لإعادة تهيئة الحقول
-  void _clearFields() {
-    nameController.clear();
-    idController.clear();
-    passwordController.clear();
-    selectedStudents.clear();
   }
 }

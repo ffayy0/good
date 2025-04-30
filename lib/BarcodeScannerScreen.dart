@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   @override
@@ -11,38 +12,137 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? controller;
   String barcodeResult = "لم يتم المسح بعد";
-  final Set<String> scannedBarcodes = {}; // لتخزين الباركود المسجلة
+  final Set<String> scannedBarcodes = {};
+
+  DateTime? attendanceStartTime;
+  String? schoolId;
 
   @override
-  void dispose() {
-    controller?.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _loadSchoolData();
   }
 
-  // دالة لتسجيل الحضور مع حالة محددة
-  void registerAttendance(String studentId, String status) async {
+  Future<void> _loadSchoolData() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      schoolId = prefs.getString('schoolId') ?? '';
+
+      if (schoolId == null || schoolId!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ لم يتم العثور على معرف المدرسة")),
+        );
+        return;
+      }
+
+      final schoolDoc =
+          await FirebaseFirestore.instance
+              .collection('schools')
+              .doc(schoolId)
+              .get();
+      if (schoolDoc.exists &&
+          schoolDoc.data()!.containsKey('attendanceStartTime')) {
+        final timeString = schoolDoc['attendanceStartTime'] as String;
+        final parts = timeString.split(':');
+        if (parts.length == 2) {
+          final hour = int.tryParse(parts[0]) ?? 7;
+          final minute = int.tryParse(parts[1]) ?? 0;
+          attendanceStartTime = DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day,
+            hour,
+            minute,
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ لم يتم العثور على وقت بداية الدوام")),
+        );
+      }
+    } catch (e) {
+      print("❌ خطأ أثناء جلب بيانات المدرسة: $e");
+    }
+  }
+
+  void registerAttendance({
+    required String studentId,
+    required String studentName,
+    required String stage,
+    required String schoolClass,
+    required String guardianId,
+    required String guardianPhone,
+    required String scannedSchoolId,
+    required DateTime scanTime,
+  }) async {
+    try {
+      if (attendanceStartTime == null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("❌ وقت بداية الدوام غير معروف")));
+        return;
+      }
+
       FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-      // تحديث أو إضافة حالة الحضور في Firestore
-      await firestore.collection('attendance').doc(studentId).set(
-        {
-          'student_id': studentId,
-          'status': status, // حالة الحضور (حضور/غياب/تأخير)
-          'timestamp': FieldValue.serverTimestamp(), // تاريخ ووقت التسجيل
-        },
-        SetOptions(merge: true),
-      ); // استخدام merge لتجنب الكتابة فوق البيانات السابقة
+      String status;
+      final difference = scanTime.difference(attendanceStartTime!).inMinutes;
+
+      if (difference <= 0) {
+        status = 'حضور';
+      } else if (difference > 0 && difference <= 40) {
+        status = 'تأخير';
+      } else {
+        status = 'غياب';
+      }
+
+      final today = DateTime.now();
+      final todayString =
+          "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+
+      // ✅ 1. حفظ السجل اليومي تحت schoolId/date/studentId
+      await firestore
+          .collection('attendance')
+          .doc(scannedSchoolId)
+          .collection(todayString)
+          .doc(studentId)
+          .set({
+            'studentId': studentId,
+            'studentName': studentName,
+            'stage': stage,
+            'schoolClass': schoolClass,
+            'guardianId': guardianId,
+            'guardianPhone': guardianPhone,
+            'status': status,
+            'timestamp': FieldValue.serverTimestamp(),
+            'schoolId': scannedSchoolId,
+          }, SetOptions(merge: true));
+
+      // ✅ 2. حفظ الحالة الأخيرة تحت attendance/studentId (لشاشة الإداري)
+      await firestore.collection('attendance').doc(studentId).set({
+        'status': status,
+        'timestamp': FieldValue.serverTimestamp(),
+        'schoolId': scannedSchoolId,
+        'studentName': studentName,
+        'stage': stage,
+        'schoolClass': schoolClass,
+      }, SetOptions(merge: true));
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("تم تسجيل الحضور للطالب: $studentId")),
+        SnackBar(content: Text("✅ تم تسجيل $status للطالب: $studentName")),
       );
     } catch (e) {
-      print("خطأ أثناء التسجيل: $e");
+      print("❌ خطأ أثناء التسجيل: $e");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("خطأ أثناء تسجيل الحضور!")));
     }
+  } // 🔚 نهاية الكود
+
+  void _resetScan() {
+    setState(() {
+      barcodeResult = "لم يتم المسح بعد";
+    });
   }
 
   @override
@@ -56,82 +156,43 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
             child: QRView(
               key: qrKey,
               onQRViewCreated: (QRViewController qrController) {
-                setState(() => controller = qrController);
+                controller = qrController;
                 qrController.scannedDataStream.listen((scanData) {
                   String scannedId = scanData.code ?? "خطأ في المسح";
 
-                  // التحقق مما إذا كان الباركود قد تم مسحه بالفعل
                   if (!scannedBarcodes.contains(scannedId)) {
+                    final parts = scannedId.split('|');
+
+                    if (parts.length < 7) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("❌ بيانات QR غير كاملة")),
+                      );
+                      return;
+                    }
+
                     setState(() {
                       barcodeResult = scannedId;
-                      scannedBarcodes.add(
-                        scannedId,
-                      ); // إضافة الباركود إلى المجموعة
+                      scannedBarcodes.add(scannedId);
                     });
 
-                    // عرض نافذة حوار لاختيار حالة الحضور
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        String selectedStatus = "حضور"; // الحالة الافتراضية
+                    final String studentId = parts[0];
+                    final String studentName = parts[1];
+                    final String stage = parts[2];
+                    final String schoolClass = parts[3];
+                    final String guardianId = parts[4];
+                    final String guardianPhone = parts[5];
+                    final String scannedSchoolId = parts[6];
+                    final scanTime = DateTime.now();
 
-                        return AlertDialog(
-                          title: Text("اختر حالة الحضور"),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ListTile(
-                                title: Text("حضور"),
-                                leading: Radio<String>(
-                                  value: "حضور",
-                                  groupValue: selectedStatus,
-                                  onChanged: (value) {
-                                    setState(() => selectedStatus = value!);
-                                  },
-                                ),
-                              ),
-                              ListTile(
-                                title: Text("غياب"),
-                                leading: Radio<String>(
-                                  value: "غياب",
-                                  groupValue: selectedStatus,
-                                  onChanged: (value) {
-                                    setState(() => selectedStatus = value!);
-                                  },
-                                ),
-                              ),
-                              ListTile(
-                                title: Text("تأخير"),
-                                leading: Radio<String>(
-                                  value: "تأخير",
-                                  groupValue: selectedStatus,
-                                  onChanged: (value) {
-                                    setState(() => selectedStatus = value!);
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context); // إغلاق النافذة
-                              },
-                              child: Text("إلغاء"),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context); // إغلاق النافذة
-                                registerAttendance(
-                                  scannedId,
-                                  selectedStatus,
-                                ); // تسجيل الحضور
-                              },
-                              child: Text("تأكيد"),
-                            ),
-                          ],
-                        );
-                      },
+                    registerAttendance(
+                      studentId: studentId,
+                      studentName: studentName,
+                      stage: stage,
+                      schoolClass: schoolClass,
+                      guardianId: guardianId,
+                      guardianPhone: guardianPhone,
+                      scannedSchoolId: scannedSchoolId,
+                      scanTime: scanTime,
                     );
                   }
                 });
@@ -141,9 +202,23 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
           Expanded(
             flex: 1,
             child: Center(
-              child: Text(
-                "النتيجة: $barcodeResult",
-                style: TextStyle(fontSize: 18),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    "النتيجة: $barcodeResult",
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    onPressed: _resetScan,
+                    icon: Icon(Icons.refresh),
+                    label: Text("إعادة المسح"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[300],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

@@ -3,7 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mut6/PasswordRecoveryScreen.dart';
 import 'package:mut6/admin_screen.dart';
 import 'package:mut6/home_screen.dart';
+import 'package:mut6/providers/TeacherProvider.dart';
 import 'package:mut6/teacher_screen.dart';
+import 'package:provider/provider.dart'; // استيراد Provider
 
 class LoginEmployeeScreen extends StatefulWidget {
   const LoginEmployeeScreen({Key? key}) : super(key: key);
@@ -100,7 +102,14 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
     if (role == "admin") {
       nextScreen = AdminScreen();
     } else {
-      // افترض أن هناك مدة محددة في بيانات المستخدم
+      // تخزين بيانات المعلم في TeacherProvider
+      final teacherProvider = Provider.of<TeacherProvider>(
+        context,
+        listen: false,
+      );
+      teacherProvider.setTeacherData(userData['id'], userData['name']);
+
+      // افتراض أن هناك مدة محددة في بيانات المستخدم
       int exitMinutes = userData['exitDuration'] ?? 10; // افتراضياً 10 دقائق
       nextScreen = StudyStageScreen(
         exitDuration: Duration(minutes: exitMinutes),

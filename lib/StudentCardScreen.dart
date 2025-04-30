@@ -6,8 +6,10 @@ import 'package:screenshot/screenshot.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class StudentCardScreen extends StatefulWidget {
   final String name;
@@ -17,7 +19,6 @@ class StudentCardScreen extends StatefulWidget {
   final String guardianId;
   final String guardianEmail;
   final String guardianPhone;
-  final String qrData;
 
   const StudentCardScreen({
     required this.name,
@@ -27,7 +28,7 @@ class StudentCardScreen extends StatefulWidget {
     required this.guardianId,
     required this.guardianEmail,
     required this.guardianPhone,
-    required this.qrData,
+    required String qrData,
   });
 
   @override
@@ -36,23 +37,72 @@ class StudentCardScreen extends StatefulWidget {
 
 class _StudentCardScreenState extends State<StudentCardScreen> {
   final ScreenshotController screenshotController = ScreenshotController();
+  final Color _iconColor = const Color(0xFF007AFF);
+  final Color _buttonColor = const Color(0xFF007AFF);
+  final Color _textColor = Colors.black87;
 
-  // تعريف الألوان المستخدمة
-  final Color _iconColor = const Color(
-    0xFF007AFF,
-  ); // أزرق مشابه للون iOS الافتراضي
-  final Color _buttonColor = const Color(0xFF007AFF); // نفس اللون الأزرق للزر
-  final Color _textColor = Colors.black87; // نص أسود داكن (أكثر وضوحًا)
+  final String senderEmail = "8ffaay01@gmail.com";
+  final String senderPassword = "vljn jaxv hukr qbct";
 
-  // بيانات المرسل
-  final String senderEmail = "8ffaay01@gmail.com"; // ✉️ بريد المرسل
-  final String senderPassword = "vljn jaxv hukr qbct"; // 🔑 كلمة مرور التطبيق
+  String? schoolId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchoolId();
+  }
+
+  Future<void> _loadSchoolId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedSchoolId = prefs.getString('schoolId');
+
+    if (storedSchoolId != null && storedSchoolId.isNotEmpty) {
+      setState(() {
+        schoolId = storedSchoolId;
+      });
+    } else {
+      await _fetchSchoolIdFromStudent();
+    }
+  }
+
+  Future<void> _fetchSchoolIdFromStudent() async {
+    try {
+      final studentSnapshot =
+          await FirebaseFirestore.instance
+              .collection('students')
+              .where('id', isEqualTo: widget.id)
+              .limit(1)
+              .get();
+
+      if (studentSnapshot.docs.isNotEmpty) {
+        final studentData =
+            studentSnapshot.docs.first.data() as Map<String, dynamic>;
+        final fetchedSchoolId = studentData['schoolId'] ?? '';
+
+        setState(() {
+          schoolId = fetchedSchoolId;
+        });
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('schoolId', fetchedSchoolId);
+      } else {
+        print('❗ لم يتم العثور على الطالب.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لم يتم العثور على بيانات الطالب')),
+        );
+      }
+    } catch (e) {
+      print('❌ خطأ أثناء جلب بيانات الطالب: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('حدث خطأ أثناء جلب بيانات الطالب: $e')),
+      );
+    }
+  }
 
   Future<void> _saveCardAsImage() async {
     try {
-      // طلب الأذونات
       await Permission.storage.request();
-      await Permission.photos.request(); // مهم جداً لـ iOS
+      await Permission.photos.request();
 
       final imageBytes = await screenshotController.capture();
       if (imageBytes != null) {
@@ -76,15 +126,12 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
     }
   }
 
-  // ✅ دالة إعادة إرسال البريد الإلكتروني
   Future<void> _resendEmail() async {
     try {
-      // إعادة إرسال البريد الإلكتروني
       await sendEmail(
         widget.guardianEmail,
         widget.name,
-        widget
-            .guardianId, // هنا يمكن استخدام نفس البيانات أو جلبها من Firebase إذا كانت مختلفة
+        widget.guardianId,
         widget.id,
       );
 
@@ -99,7 +146,6 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
     }
   }
 
-  // ✅ إرسال البريد الإلكتروني
   Future<void> sendEmail(
     String recipientEmail,
     String name,
@@ -128,7 +174,6 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
     }
   }
 
-  // ✅ اختيار SMTP بناءً على نوع البريد
   SmtpServer getSmtpServer(String email, String password) {
     String domain = email.split('@').last.toLowerCase();
     switch (domain) {
@@ -186,14 +231,27 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (schoolId == null) {
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final String qrContent =
+        "${widget.id}|"
+        "${widget.name}|"
+        "${widget.stage}|"
+        "${widget.schoolClass}|"
+        "${widget.guardianId}|"
+        "${widget.guardianPhone}|"
+        "$schoolId";
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'بطاقة الطالب',
           style: TextStyle(color: Colors.white),
         ),
-        backgroundColor: _buttonColor, // نفس لون الزر
-        iconTheme: const IconThemeData(color: Colors.white), // أيقونة بيضاء
+        backgroundColor: _buttonColor,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -222,7 +280,7 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
                         style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: _buttonColor, // نفس لون الزر
+                          color: _buttonColor,
                         ),
                       ),
                       const Divider(),
@@ -261,7 +319,7 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
                       ),
                       const SizedBox(height: 20),
                       QrImageView(
-                        data: widget.qrData,
+                        data: qrContent,
                         version: QrVersions.auto,
                         size: 150.0,
                       ),
@@ -275,13 +333,13 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
               children: [
                 ElevatedButton.icon(
                   onPressed: _saveCardAsImage,
-                  icon: Icon(Icons.download, color: Colors.white),
+                  icon: const Icon(Icons.download, color: Colors.white),
                   label: const Text(
                     "حفظ البطاقة كصورة",
                     style: TextStyle(color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _buttonColor, // نفس اللون الأزرق للزر
+                    backgroundColor: _buttonColor,
                     padding: const EdgeInsets.symmetric(
                       vertical: 15,
                       horizontal: 30,
@@ -291,16 +349,16 @@ class _StudentCardScreenState extends State<StudentCardScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10), // مسافة بين الأزرار
+                const SizedBox(height: 10),
                 ElevatedButton.icon(
                   onPressed: _resendEmail,
-                  icon: Icon(Icons.email, color: Colors.white),
+                  icon: const Icon(Icons.email, color: Colors.white),
                   label: const Text(
                     "إعادة إرسال البريد الإلكتروني",
                     style: TextStyle(color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _buttonColor, // نفس اللون الأزرق للزر
+                    backgroundColor: _buttonColor,
                     padding: const EdgeInsets.symmetric(
                       vertical: 15,
                       horizontal: 30,

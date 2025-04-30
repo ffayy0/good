@@ -16,12 +16,14 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 
 class CustomDrawer extends StatefulWidget {
+  const CustomDrawer({super.key});
+
   @override
   _CustomDrawerState createState() => _CustomDrawerState();
 }
 
 class _CustomDrawerState extends State<CustomDrawer> {
-  bool _isLoading = false;
+  final bool _isLoading = false;
 
   Future<void> generateAndSaveBarcodes() async {
     // ... (كود توليد الباركود كما هو)
@@ -61,7 +63,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
             },
           ),
           drawerItem(
-            title: "إضافة المعلمين",
+            title: "إضافة معلمين",
             iconText: "+", // رمز نصي
             onTap: () {
               Navigator.push(
@@ -71,8 +73,8 @@ class _CustomDrawerState extends State<CustomDrawer> {
             },
           ),
           drawerItem(
-            title: "المعلمين",
-            icon: Icons.attachment,
+            title: "معلمين",
+            icon: Icons.person, // أيقونة جديدة تعبر عن المعلمين
             onTap: () {
               Navigator.push(
                 context,

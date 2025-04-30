@@ -11,6 +11,7 @@ class CustomTextField extends StatelessWidget {
   final bool enabled; // معلمة جديدة لتحديد إذا كان الحقل قابلاً للتعديل
 
   const CustomTextField({
+    super.key,
     required this.controller,
     required this.icon,
     required this.hintText,

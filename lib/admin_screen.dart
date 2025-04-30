@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:mut6/AddTeacherScreen.dart';
 import 'package:mut6/Permission_screen.dart';
-import 'package:mut6/teacher_previous_requests_screen.dart';
+import 'package:mut6/admin_previous_requests_screen.dart';
+import 'package:mut6/exit_request_details_screen.dart';
+
 import '../widgets/custom_button.dart'; // استيراد الزر الصحيح
 import '../widgets/custom_drawer.dart';
-import 'exit_permits_screen.dart';
-import 'attend_class_screen.dart' hide CustomButton; // إخفاء الزر المتعارض
+import 'attend_class_screen.dart' hide CustomButton;
 
 class AdminScreen extends StatelessWidget {
   @override

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AttachedExcuses extends StatelessWidget {
+  const AttachedExcuses({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -34,8 +36,7 @@ class CustomButton extends StatelessWidget {
   final String title;
   final VoidCallback onPressed;
 
-  const CustomButton({Key? key, required this.title, required this.onPressed})
-    : super(key: key);
+  const CustomButton({super.key, required this.title, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {

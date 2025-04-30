@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mut6/StudentCardScreen.dart';
 
 class StudentSearchScreen extends StatefulWidget {
+  const StudentSearchScreen({super.key});
+
   @override
   _StudentSearchScreenState createState() => _StudentSearchScreenState();
 }
@@ -94,10 +96,6 @@ class _StudentSearchScreenState extends State<StudentSearchScreen> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _searchStudent,
-              child: const Text(
-                'بحث',
-                style: TextStyle(color: Colors.white), // نص أبيض داخل الزر
-              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _buttonColor, // لون الزر الأزرق
                 padding: const EdgeInsets.symmetric(
@@ -107,6 +105,10 @@ class _StudentSearchScreenState extends State<StudentSearchScreen> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8), // حواف مستديرة
                 ),
+              ),
+              child: const Text(
+                'بحث',
+                style: TextStyle(color: Colors.white), // نص أبيض داخل الزر
               ),
             ),
           ],

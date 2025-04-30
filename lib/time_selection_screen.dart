@@ -1,18 +1,15 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:mut6/exit_permits_screen.dart';
-import 'package:mut6/teacher_screen.dart'; // استيراد صفحة StudyStageScreen
+import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mut6/providers/TeacherProvider.dart';
+import 'package:mut6/teacher_screen.dart';
+import 'package:provider/provider.dart';
 
 class TimeSelectionScreen extends StatefulWidget {
   final String studentName;
   final String grade;
-  final String teacherName;
 
-  TimeSelectionScreen({
-    required this.studentName,
-    required this.grade,
-    required this.teacherName,
-  });
+  TimeSelectionScreen({required this.studentName, required this.grade});
 
   @override
   _TimeSelectionScreenState createState() => _TimeSelectionScreenState();
@@ -45,6 +42,10 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // الحصول على اسم المعلم من TeacherProvider
+    final teacherProvider = Provider.of<TeacherProvider>(context);
+    final teacherName = teacherProvider.teacherName ?? "غير محدد";
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green,
@@ -62,6 +63,11 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
             Text(
               "اسم الطالب: ${widget.studentName}",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 20),
+            Text(
+              "اسم المعلم: $teacherName",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 20),
             Row(
@@ -128,20 +134,22 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
                     return;
                   }
 
-                  // لا حاجة للتحقق من المدة عند اختيار "أخرى" لأن 3 دقائق الآن مقبولة
                   // حساب وقت الخروج بناءً على الوقت الحالي والمدة المحددة
                   DateTime now = DateTime.now();
                   DateTime exitTime = now.add(selectedDuration);
 
                   // إضافة الطلب إلى Firestore
-                  await ExitPermitsScreen.addStudent(
-                    studentName: widget.studentName,
-                    grade: widget.grade,
-                    teacherName: widget.teacherName,
-                    exitTime: exitTime.toIso8601String(),
-                  );
+                  await FirebaseFirestore.instance.collection('requests').add({
+                    'studentName': widget.studentName,
+                    'grade': widget.grade,
+                    'teacherName': teacherName,
+                    'exitTime': Timestamp.fromDate(
+                      exitTime,
+                    ), // تخزين الوقت كـ Timestamp
+                    'status': 'active', // الحالة الافتراضية للطلب
+                  });
 
-                  // التنقل إلى صفحة StudyStageScreen مع تمرير المدة المحددة
+                  // التنقل إلى الصفحة الرئيسية مع تمرير المدة المحددة
                   Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(

@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
+
   @override
   _MapScreenState createState() => _MapScreenState();
 }
@@ -183,7 +185,7 @@ class CustomButton extends StatelessWidget {
   final String title;
   final VoidCallback onPressed;
 
-  const CustomButton({required this.title, required this.onPressed});
+  const CustomButton({super.key, required this.title, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {

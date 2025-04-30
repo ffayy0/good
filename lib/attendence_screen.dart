@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AttendanceScreen extends StatefulWidget {
-  final String studentId; // معرف الطالب
-  final String guardianId; // معرف ولي الأمر
+  final String studentId;
+  final String guardianId;
 
   const AttendanceScreen({
     Key? key,
@@ -26,7 +26,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     _attendanceRecordsFuture = _fetchAttendanceRecords(widget.studentId);
   }
 
-  // دالة لجلب بيانات الطالب
   Future<Map<String, dynamic>> _fetchStudentData(String studentId) async {
     try {
       final studentDoc =
@@ -45,7 +44,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
-  // دالة لجلب سجل الحضور
   Future<List<Map<String, dynamic>>> _fetchAttendanceRecords(
     String studentId,
   ) async {
@@ -54,13 +52,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           await FirebaseFirestore.instance
               .collection('attendance')
               .where('studentId', isEqualTo: studentId)
-              .orderBy('date', descending: true)
+              .orderBy('timestamp', descending: true)
               .get();
       return attendanceSnapshot.docs.map((doc) => doc.data()).toList();
     } catch (e) {
       print("❌ خطأ أثناء جلب سجل الحضور: $e");
       return [];
     }
+  }
+
+  String _formatTimestamp(Timestamp? timestamp) {
+    if (timestamp == null) return 'غير محدد';
+    final date = timestamp.toDate();
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
   }
 
   @override
@@ -79,7 +83,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // عرض بيانات الطالب
             FutureBuilder<Map<String, dynamic>>(
               future: _studentDataFuture,
               builder: (context, snapshot) {
@@ -127,7 +130,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               },
             ),
             const SizedBox(height: 20),
-            // عرض سجل الحضور
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _attendanceRecordsFuture,
@@ -152,7 +154,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           margin: const EdgeInsets.symmetric(vertical: 5),
                           child: ListTile(
                             title: Text(
-                              "التاريخ: ${record['date'] ?? 'غير محدد'}",
+                              "التاريخ: ${_formatTimestamp(record['timestamp'])}",
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),

@@ -1,10 +1,10 @@
 import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/services.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ مضاف
 import 'package:mut6/StudentCardScreen.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -21,24 +21,40 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
   final TextEditingController _guardianIdController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
 
-  // القوائم الخاصة بالمرحلة الدراسية والصف
-  final List<String> _stages = ['أولى ابتدائى', 'ثاني ابتدائى', 'ثالث ابتدائى'];
+  final List<String> _stages = [
+    'أولى ابتدائي',
+    'ثاني ابتدائي',
+    'ثالث ابتدائي',
+    'رابع ابتدائي',
+    'خامس ابتدائي',
+    'سادس ابتدائي',
+  ];
   final List<String> _classes = ['1', '2', '3', '4', '5', '6'];
 
-  String? _selectedStage; // المرحلة الدراسية المختارة
-  String? _selectedClass; // الصف الدراسي المختار
-  String? _qrData; // بيانات QR
+  String? _selectedStage;
+  String? _selectedClass;
+  String? _qrData;
+  String? _schoolId; // ✅ مضاف
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // الألوان المستخدمة في التصميم
-  final Color _iconColor = const Color(
-    0xFF007AFF,
-  ); // أزرق مشابه للون iOS الافتراضي
-  final Color _buttonColor = const Color(0xFF007AFF); // نفس اللون الأزرق للزر
-  final Color _textFieldFillColor =
-      Colors.grey[200]!; // اللون الرمادي الفاتح للخلفية
-  final Color _textColor = Colors.black; // اللون الأسود للنصوص داخل المربعات
+  final Color _iconColor = const Color(0xFF007AFF);
+  final Color _buttonColor = const Color(0xFF007AFF);
+  final Color _textFieldFillColor = Colors.grey[200]!;
+  final Color _textColor = Colors.black;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchoolId(); // ✅ تحميل schoolId من SharedPreferences
+  }
+
+  Future<void> _loadSchoolId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _schoolId = prefs.getString('schoolId');
+    });
+  }
 
   Future<void> _generateQR() async {
     String name = _nameController.text.trim();
@@ -46,46 +62,41 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
     String guardianId = _guardianIdController.text.trim();
     String phone = _phoneController.text.trim();
 
-    // التحقق من صحة الاسم ليكون ثلاثي
     if (name.split(' ').length < 3) {
       _showSnackBar('الاسم يجب أن يتكون من ثلاثة أجزاء على الأقل');
       return;
     }
-
-    // التحقق من طول رقم الهوية ليكون 10 أرقام
-    if (id.length != 10) {
-      _showSnackBar('رقم الهوية يجب أن يكون 10 أرقام');
+    if (!RegExp(r'^\d{10}$').hasMatch(id)) {
+      _showSnackBar('رقم الهوية يجب أن يتكون من ١٠ أرقام فقط');
       return;
     }
-
-    // التحقق من طول رقم الجوال ليكون 10 أرقام
     if (phone.length != 10) {
       _showSnackBar('رقم الجوال يجب أن يكون 10 أرقام');
       return;
     }
-
-    // التحقق من أن جميع الحقول مملوءة
     if ([_selectedStage, _selectedClass].contains(null)) {
       _showSnackBar('رجاءً عَبِّ البيانات كاملة');
       return;
     }
 
-    // التحقق من عدم وجود طالب بنفس الرقم
+    if (_schoolId == null) {
+      _showSnackBar('لا يمكن إضافة الطالب: لم يتم العثور على معرف المدرسة');
+      return;
+    }
+
     bool isDuplicate = await _isStudentDuplicate(id);
     if (isDuplicate) {
       _showSnackBar('هذا الطالب مسجل مسبقًا');
       return;
     }
 
-    // جلب البريد الإلكتروني لولي الأمر
     String? emailFromDb = await _getGuardianEmail(guardianId);
     if (emailFromDb == null) {
-      _showSnackBar('لم يتم العثور على البريد الإلكتروني لولي الأمر');
+      _showSnackBar('لا يوجد حساب لولي الأمر');
       return;
     }
 
     try {
-      // حفظ بيانات الطالب في Firestore
       await _firestore.collection('students').doc(id).set({
         'name': name,
         'id': id,
@@ -94,15 +105,12 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
         'guardianId': guardianId,
         'guardianEmail': emailFromDb,
         'phone': phone,
-        'role': 'students',
-        'schoolId': FirebaseAuth.instance.currentUser!.uid,
+        'schoolId': _schoolId, // ✅ استخدام SharedPreferences هنا
       });
 
-      // إنشاء بيانات QR
       _qrData =
           'Name: $name\nID: $id\nStage: $_selectedStage\nClass: $_selectedClass\nGuardian ID: $guardianId\nPhone: $phone';
 
-      // إرسال بطاقة الطالب عبر البريد الإلكتروني
       await _sendStudentCardEmail(
         emailFromDb,
         name,
@@ -113,7 +121,6 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
         phone,
       );
 
-      // التنقل إلى صفحة عرض بطاقة الطالب
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -136,13 +143,11 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
     }
   }
 
-  // التحقق من تكرار الطالب
   Future<bool> _isStudentDuplicate(String id) async {
     final doc = await _firestore.collection('students').doc(id).get();
     return doc.exists;
   }
 
-  // جلب البريد الإلكتروني لولي الأمر
   Future<String?> _getGuardianEmail(String guardianId) async {
     try {
       final query =
@@ -159,7 +164,6 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
     return null;
   }
 
-  // إرسال بطاقة الطالب عبر البريد الإلكتروني
   Future<void> _sendStudentCardEmail(
     String email,
     String name,
@@ -172,17 +176,14 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
     final smtpServer = gmail('8ffaay01@gmail.com', 'vljn jaxv hukr qbct');
     final pdf = pw.Document();
 
-    // تحميل الخط الجديد (Cairo)
     final customFont = await rootBundle.load(
       "assets/fonts/Cairo-VariableFont_slnt,wght.ttf",
     );
     final ttf = pw.Font.ttf(customFont.buffer.asByteData());
 
-    // تحميل الشعار
     final logoData = await rootBundle.load('assets/images/logo.png');
     final logoImage = pw.MemoryImage(logoData.buffer.asUint8List());
 
-    // إنشاء ملف PDF
     pdf.addPage(
       pw.Page(
         build:
@@ -192,9 +193,9 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
                 child: pw.Container(
                   decoration: pw.BoxDecoration(
                     borderRadius: pw.BorderRadius.circular(16),
-                    color: PdfColor.fromInt(0xFFFFFFFF), // خلفية بيضاء
+                    color: PdfColor.fromInt(0xFFFFFFFF),
                     border: pw.Border.all(
-                      color: PdfColor.fromInt(0xFF0171BD), // اللون الأزرق
+                      color: PdfColor.fromInt(0xFF0171BD),
                       width: 2,
                     ),
                   ),
@@ -202,13 +203,10 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      // إضافة الشعار
                       pw.Center(
                         child: pw.Image(logoImage, width: 100, height: 50),
                       ),
                       pw.SizedBox(height: 16),
-
-                      // العنوان الرئيسي
                       pw.Center(
                         child: pw.Text(
                           'بطاقة الطالب',
@@ -220,8 +218,6 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
                         ),
                       ),
                       pw.SizedBox(height: 16),
-
-                      // معلومات الطالب
                       pw.Text("الاسم: $name", style: pw.TextStyle(font: ttf)),
                       pw.Text(
                         "رقم الهوية: $id",
@@ -236,7 +232,7 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
                         style: pw.TextStyle(font: ttf),
                       ),
                       pw.Text(
-                        "رقم ولي الأمر: $guardianId",
+                        "رقم هوية ولي الأمر: $guardianId",
                         style: pw.TextStyle(font: ttf),
                       ),
                       pw.Text(
@@ -244,8 +240,6 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
                         style: pw.TextStyle(font: ttf),
                       ),
                       pw.SizedBox(height: 20),
-
-                      // رمز QR
                       pw.Text("رمز QR:", style: pw.TextStyle(font: ttf)),
                       pw.BarcodeWidget(
                         barcode: pw.Barcode.qrCode(),
@@ -261,12 +255,10 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
       ),
     );
 
-    // حفظ الملف مؤقتًا
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/student_card.pdf');
     await file.writeAsBytes(await pdf.save());
 
-    // إعداد رسالة البريد الإلكتروني
     final message =
         Message()
           ..from = Address('8ffaay01@gmail.com', 'Student App')
@@ -298,13 +290,16 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
     }
   }
 
-  // عرض رسالة تنبيه
   void _showSnackBar(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_schoolId == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('إضافة طالب', style: TextStyle(color: Colors.white)),
@@ -316,11 +311,8 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // حقل اسم الطالب
               _buildTextField(_nameController, "اسم الطالب", Icons.person),
               const SizedBox(height: 10),
-
-              // حقل رقم الهوية
               _buildTextField(
                 _idController,
                 "رقم الهوية",
@@ -328,25 +320,17 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
                 isNumber: true,
               ),
               const SizedBox(height: 10),
-
-              // قائمة اختيار المرحلة الدراسية
               _buildDropdown(),
               const SizedBox(height: 10),
-
-              // قائمة اختيار الصف الدراسي
               _buildClassSelector(),
               const SizedBox(height: 10),
-
-              // حقل رقم ولي الأمر
               _buildTextField(
                 _guardianIdController,
-                "رقم ولي الأمر",
+                "رقم هوية ولي الأمر",
                 Icons.person_outline,
                 isNumber: true,
               ),
               const SizedBox(height: 10),
-
-              // حقل رقم الهاتف
               _buildTextField(
                 _phoneController,
                 "رقم الهاتف",
@@ -354,12 +338,10 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
                 isNumber: true,
               ),
               const SizedBox(height: 20),
-
-              // زر إنشاء بطاقة الطالب
               ElevatedButton(
                 onPressed: _generateQR,
                 child: const Text(
-                  'إنشاء بطاقة الطالب',
+                  'اضافة الطالب',
                   style: TextStyle(color: Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -380,7 +362,6 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
     );
   }
 
-  // دالة لإنشاء حقل نصي
   Widget _buildTextField(
     TextEditingController controller,
     String label,
@@ -391,31 +372,28 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: _textColor), // لون النص الأسود
+        labelStyle: TextStyle(color: _textColor),
         border: OutlineInputBorder(),
-        prefixIcon: Icon(icon, color: _iconColor), // أيقونة باللون الأزرق
+        prefixIcon: Icon(icon, color: _iconColor),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: _iconColor), // حدود عند التركيز
+          borderSide: BorderSide(color: _iconColor),
         ),
         filled: true,
-        fillColor: _textFieldFillColor, // خلفية الحقل (رمادي فاتح)
+        fillColor: _textFieldFillColor,
       ),
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      style: TextStyle(
-        color: _textColor, // لون النص الأساسي داخل الحقل (أسود)
-      ),
+      style: TextStyle(color: _textColor),
     );
   }
 
-  // دالة لإنشاء قائمة اختيار المرحلة الدراسية
   Widget _buildDropdown() {
     return DropdownButtonFormField<String>(
       decoration: InputDecoration(
         labelText: 'المرحلة الدراسية',
-        labelStyle: TextStyle(color: _textColor), // لون النص الأسود
+        labelStyle: TextStyle(color: _textColor),
         border: OutlineInputBorder(),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: _iconColor), // حدود عند التركيز
+          borderSide: BorderSide(color: _iconColor),
         ),
       ),
       value: _selectedStage,
@@ -428,21 +406,20 @@ class _StudentBarcodeScreenState extends State<StudentBarcodeScreen> {
       onChanged: (value) {
         setState(() {
           _selectedStage = value;
-          _selectedClass = null; // إعادة تعيين الصف عند تغيير المرحلة
+          _selectedClass = null;
         });
       },
     );
   }
 
-  // دالة لإنشاء قائمة اختيار الصف الدراسي
   Widget _buildClassSelector() {
     return DropdownButtonFormField<String>(
       decoration: InputDecoration(
         labelText: 'اختر الصف',
-        labelStyle: TextStyle(color: _textColor), // لون النص الأسود
+        labelStyle: TextStyle(color: _textColor),
         border: OutlineInputBorder(),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: _iconColor), // حدود عند التركيز
+          borderSide: BorderSide(color: _iconColor),
         ),
       ),
       value: _selectedClass,

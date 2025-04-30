@@ -5,7 +5,7 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 
 class PasswordRecoveryScreen extends StatefulWidget {
-  const PasswordRecoveryScreen({Key? key}) : super(key: key);
+  const PasswordRecoveryScreen({super.key});
 
   @override
   _PasswordRecoveryScreenState createState() => _PasswordRecoveryScreenState();
@@ -102,7 +102,7 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
       if (userQuery.docs.isNotEmpty) {
         // إذا تم العثور على المستخدم، نحصل على البريد الإلكتروني
         var userDoc = userQuery.docs.first;
-        var userData = userDoc.data() as Map<String, dynamic>;
+        var userData = userDoc.data();
         String email = userData['email'];
 
         if (email.isNotEmpty) {

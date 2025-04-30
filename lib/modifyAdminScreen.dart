@@ -5,6 +5,8 @@ import 'package:mut6/widgets/custom_button_auth.dart';
 import 'package:mut6/widgets/custom_text_field.dart';
 
 class AdminListScreen extends StatefulWidget {
+  const AdminListScreen({super.key});
+
   @override
   _AdminListScreenState createState() => _AdminListScreenState();
 }

@@ -6,7 +6,11 @@ class AdminStudentsListScreen extends StatefulWidget {
   final String stage;
   final String schoolClass;
 
-  AdminStudentsListScreen({required this.stage, required this.schoolClass});
+  const AdminStudentsListScreen({
+    super.key,
+    required this.stage,
+    required this.schoolClass,
+  });
 
   @override
   _AdminStudentsListScreen createState() => _AdminStudentsListScreen();
@@ -20,9 +24,9 @@ class _AdminStudentsListScreen extends State<AdminStudentsListScreen> {
   String? selectedStudent;
 
   final Map<String, String> stageMap = {
-    "أولى ثانوي": "first",
-    "ثاني ثانوي": "second",
-    "ثالث ثانوي": "third",
+    "أولى ابتدائي": "first",
+    "ثاني ابتدائي": "second",
+    "ثالث ابتدائي": "third",
   };
 
   @override
@@ -158,12 +162,12 @@ class _AdminStudentsListScreen extends State<AdminStudentsListScreen> {
                       },
                       color: Color.fromARGB(255, 1, 113, 189),
                       textColor: Colors.white,
-                      child: Text("موافق"),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(25),
                       ),
                       height: 50,
                       minWidth: double.infinity,
+                      child: Text("موافق"),
                     ),
                   ],
                 ),

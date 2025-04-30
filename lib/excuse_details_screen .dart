@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class ExcuseDetailsScreen extends StatelessWidget {
+  const ExcuseDetailsScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,12 +51,12 @@ class ExcuseDetailsScreen extends StatelessWidget {
               onPressed: () {},
               color: Colors.grey[300],
               textColor: Color.fromARGB(255, 1, 113, 189),
-              child: Text("عرض الملف المرفق"),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
               height: 50,
               minWidth: double.infinity,
+              child: Text("عرض الملف المرفق"),
             ),
             Spacer(), // يدفع الأزرار إلى الأسفل
             Row(
@@ -64,23 +66,23 @@ class ExcuseDetailsScreen extends StatelessWidget {
                   onPressed: () {},
                   color: Color.fromARGB(255, 1, 113, 189),
                   textColor: Colors.white,
-                  child: Text("رفض"),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25),
                   ),
                   height: 50,
                   minWidth: 200,
+                  child: Text("رفض"),
                 ),
                 MaterialButton(
                   onPressed: () {},
                   color: Color.fromARGB(255, 1, 113, 189),
                   textColor: Colors.white,
-                  child: Text("قبول"),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25),
                   ),
                   height: 50,
                   minWidth: 200,
+                  child: Text("قبول"),
                 ),
               ],
             ),

@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mut6/home_screen.dart';
 
 class GuardianCustomDrawer extends StatelessWidget {
+  const GuardianCustomDrawer({super.key});
+
   Future<void> _signOut(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();

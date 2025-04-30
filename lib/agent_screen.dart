@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:mut6/AgentChildrenScreen.dart';
+import 'package:mut6/widgets/custom_button.dart';
 import 'package:mut6/widgets/guardian_custom_drawer.dart';
-import 'AgentChildrenScreen.dart'; // صفحة التابعين
-import 'children_screen.dart'; // صفحة التابعين
 
 class AgentScreen extends StatelessWidget {
   final String agentId; // معرف الوكيل
-  const AgentScreen({Key? key, required this.agentId}) : super(key: key);
+  final String guardianId; // معرف ولي الأمر
+
+  const AgentScreen({
+    super.key,
+    required this.agentId,
+    required this.guardianId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -46,6 +52,13 @@ class AgentScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // إضافة اللوجو هنا
+            Image.network(
+              'https://i.postimg.cc/DwnKf079/321e9c9d-4d67-4112-a513-d368fc26b0c0.jpg',
+              width: 200,
+              height: 189,
+            ),
+            const SizedBox(height: 30), // مسافة بين اللوجو والزر
             // زر طلب النداء
             CustomButton(
               title: "طلب نداء",
@@ -56,44 +69,13 @@ class AgentScreen extends StatelessWidget {
                     builder:
                         (context) => AgentChildrenScreen(
                           agentId: agentId,
-                        ), // استخدام agentId هنا
+                          guardianId: guardianId, // تمرير guardianId هنا
+                        ),
                   ),
                 );
               },
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// ودجة الزر المخصصة
-class CustomButton extends StatelessWidget {
-  final String title;
-  final void Function()? onPressed;
-  const CustomButton({super.key, required this.title, this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 60,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(255, 1, 113, 189),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-        ),
-        onPressed: onPressed,
-        child: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
         ),
       ),
     );

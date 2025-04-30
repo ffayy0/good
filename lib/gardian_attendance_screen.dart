@@ -38,7 +38,7 @@ class AttendanceScreen extends StatelessWidget {
             return {
               "name": snapshot['name'],
               "schoolClass":
-                  "${schoolClass}/${stageMap[stage]}", // تحويل المرحلة إلى رقم
+                  "$schoolClass/${stageMap[stage]}", // تحويل المرحلة إلى رقم
             };
           }
         }

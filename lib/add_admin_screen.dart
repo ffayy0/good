@@ -8,22 +8,6 @@ import 'package:mailer/smtp_server.dart';
 import 'widgets/custom_button_auth.dart';
 import 'widgets/custom_text_field.dart';
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: AddAdminScreen(),
-    );
-  }
-}
-
 class AddAdminScreen extends StatelessWidget {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController idController = TextEditingController();
@@ -65,19 +49,16 @@ class AddAdminScreen extends StatelessWidget {
     String phone = phoneController.text.trim();
     String email = emailController.text.trim();
 
-    // التحقق من أن جميع الحقول مملوءة
     if ([name, id, phone, email].any((element) => element.isEmpty)) {
       showSnackBar(context, "يجب ملء جميع الحقول قبل الإضافة");
       return;
     }
 
-    // التحقق من صيغة البريد الإلكتروني
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$').hasMatch(email)) {
       showSnackBar(context, "البريد الإلكتروني غير صحيح.");
       return;
     }
 
-    // التحقق من رقم الجوال
     final phoneRegex = RegExp(r'^05\d{8}$');
     if (!phoneRegex.hasMatch(phone)) {
       showSnackBar(
@@ -87,14 +68,12 @@ class AddAdminScreen extends StatelessWidget {
       return;
     }
 
-    // التحقق من طول رقم الإداري (يجب أن يكون مكونًا من 10 أرقام)
     final idRegex = RegExp(r'^\d{10}$');
     if (!idRegex.hasMatch(id)) {
       showSnackBar(context, "رقم الإداري يجب أن يتكون من 10 أرقام فقط.");
       return;
     }
 
-    // التحقق من عدم تكرار البيانات
     bool isDuplicate = await isAdminDuplicate(id, email, phone);
     if (isDuplicate) {
       showSnackBar(context, "هذا الإداري مسجل مسبقًا، لا يمكن تكرار البيانات.");
@@ -103,16 +82,19 @@ class AddAdminScreen extends StatelessWidget {
 
     try {
       String password = generateRandomPassword();
-      await FirebaseFirestore.instance.collection('admins').add({
-        'name': name,
-        'id': id,
-        'phone': phone,
-        'email': email,
-        'password': password,
-        'role': 'assistant',
-        'schoolId': FirebaseAuth.instance.currentUser!.uid,
-        'createdAt': Timestamp.now(),
-      });
+      await FirebaseFirestore.instance
+          .collection('admins')
+          .doc(id) // ✅ هنا التعديل الوحيد: استخدام id كمفتاح المستند
+          .set({
+            'name': name,
+            'id': id,
+            'phone': phone,
+            'email': email,
+            'password': password,
+            'role': 'assistant',
+            'schoolId': FirebaseAuth.instance.currentUser!.uid,
+            'createdAt': Timestamp.now(),
+          });
 
       await sendEmail(email, name, id, password);
 
@@ -121,7 +103,6 @@ class AddAdminScreen extends StatelessWidget {
         "تمت إضافة الإداري بنجاح، وتم إرسال كلمة المرور عبر البريد",
       );
 
-      // مسح الحقول بعد الإضافة
       nameController.clear();
       idController.clear();
       phoneController.clear();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart'; // لإظهار التاريخ بشكل مرتب
 
 class AttendenceNames extends StatelessWidget {
   final String stage;
@@ -50,9 +51,8 @@ class AttendenceNames extends StatelessWidget {
                           snapshot.data!.docs[index].data()
                               as Map<String, dynamic>;
                       final name = student['name'];
-                      final studentId = student['id']; // معرف الطالب
+                      final studentId = student['id'];
 
-                      // جلب حالة الحضور من Firestore باستخدام StreamBuilder
                       return StreamBuilder<DocumentSnapshot>(
                         stream:
                             FirebaseFirestore.instance
@@ -61,11 +61,25 @@ class AttendenceNames extends StatelessWidget {
                                 .snapshots(),
                         builder: (context, attendanceSnapshot) {
                           String status = "غير معروف";
+                          String stage = "";
+                          String schoolClass = "";
+                          String formattedTime = "غير محدد";
+
                           if (attendanceSnapshot.hasData &&
                               attendanceSnapshot.data!.exists) {
-                            status =
-                                attendanceSnapshot.data!['status'] ??
-                                "غير معروف";
+                            final data =
+                                attendanceSnapshot.data!.data()
+                                    as Map<String, dynamic>;
+                            status = data['status'] ?? "غير معروف";
+                            stage = data['stage'] ?? "";
+                            schoolClass = data['schoolClass'] ?? "";
+                            final timestamp = data['timestamp'] as Timestamp?;
+                            if (timestamp != null) {
+                              final dateTime = timestamp.toDate();
+                              formattedTime = DateFormat(
+                                'yyyy-MM-dd HH:mm',
+                              ).format(dateTime);
+                            }
                           }
 
                           Color statusColor;
@@ -83,19 +97,27 @@ class AttendenceNames extends StatelessWidget {
                               statusColor = Colors.grey;
                           }
 
-                          return Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            textDirection: TextDirection.rtl,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  name,
-                                  style: TextStyle(fontSize: 18),
-                                  textAlign: TextAlign.right,
+                          return Card(
+                            margin: EdgeInsets.symmetric(vertical: 8),
+                            child: ListTile(
+                              contentPadding: EdgeInsets.all(12),
+                              title: Text(
+                                name,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
                                 ),
+                                textAlign: TextAlign.right,
                               ),
-                              SizedBox(width: 10),
-                              Container(
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text("المرحلة: $stage"),
+                                  Text("الصف: $schoolClass"),
+                                  Text("وقت التسجيل: $formattedTime"),
+                                ],
+                              ),
+                              trailing: Container(
                                 width: 12,
                                 height: 12,
                                 decoration: BoxDecoration(
@@ -103,66 +125,51 @@ class AttendenceNames extends StatelessWidget {
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                              SizedBox(width: 10),
-                              ElevatedButton(
-                                onPressed: () async {
-                                  // عرض قائمة الخيارات لتعديل حالة الحضور
-                                  final newStatus = await showDialog<String>(
-                                    context: context,
-                                    builder:
-                                        (context) => SimpleDialog(
-                                          title: Text("اختر الحالة الجديدة"),
-                                          children: [
-                                            SimpleDialogOption(
-                                              child: Text("حضور"),
-                                              onPressed:
-                                                  () => Navigator.pop(
-                                                    context,
-                                                    "حضور",
-                                                  ),
-                                            ),
-                                            SimpleDialogOption(
-                                              child: Text("غياب"),
-                                              onPressed:
-                                                  () => Navigator.pop(
-                                                    context,
-                                                    "غياب",
-                                                  ),
-                                            ),
-                                            SimpleDialogOption(
-                                              child: Text("تأخير"),
-                                              onPressed:
-                                                  () => Navigator.pop(
-                                                    context,
-                                                    "تأخير",
-                                                  ),
-                                            ),
-                                          ],
-                                        ),
-                                  );
+                              onTap: () async {
+                                final newStatus = await showDialog<String>(
+                                  context: context,
+                                  builder:
+                                      (context) => SimpleDialog(
+                                        title: Text("اختر الحالة الجديدة"),
+                                        children: [
+                                          SimpleDialogOption(
+                                            child: Text("حضور"),
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  "حضور",
+                                                ),
+                                          ),
+                                          SimpleDialogOption(
+                                            child: Text("غياب"),
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  "غياب",
+                                                ),
+                                          ),
+                                          SimpleDialogOption(
+                                            child: Text("تأخير"),
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  "تأخير",
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                );
 
-                                  // تحديث الحالة في Firestore إذا تم اختيار حالة جديدة
-                                  if (newStatus != null) {
-                                    await FirebaseFirestore.instance
-                                        .collection('attendance')
-                                        .doc(studentId)
-                                        .set({'status': newStatus});
-                                  }
-                                },
-                                child: Text("تعديل"),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color.fromARGB(
-                                    255,
-                                    1,
-                                    113,
-                                    189,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(25),
-                                  ),
-                                ),
-                              ),
-                            ],
+                                if (newStatus != null) {
+                                  await FirebaseFirestore.instance
+                                      .collection('attendance')
+                                      .doc(studentId)
+                                      .set({
+                                        'status': newStatus,
+                                      }, SetOptions(merge: true));
+                                }
+                              },
+                            ),
                           );
                         },
                       );

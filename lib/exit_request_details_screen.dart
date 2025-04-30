@@ -1,41 +1,20 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:mut6/RequestDetailsScreen.dart';
 
-class RequestDetailsScreen extends StatelessWidget {
-  final QueryDocumentSnapshot request;
-
-  const RequestDetailsScreen({Key? key, required this.request})
-    : super(key: key);
+class ExitPermitsScreen extends StatelessWidget {
+  static final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   @override
   Widget build(BuildContext context) {
-    // استرداد البيانات كخريطة
-    final data = request.data() as Map<String, dynamic>;
-
-    // التحقق من أن البيانات ليست فارغة
-    if (data == null) {
-      return Scaffold(
-        appBar: AppBar(title: Text("خطأ")),
-        body: Center(child: Text("حدث خطأ أثناء جلب بيانات الطلب.")),
-      );
-    }
-
-    // استخراج الحقول بأمان
-    final studentName = data['studentName'] ?? 'غير محدد';
-    final grade =
-        data['grade']?.toString().isNotEmpty == true
-            ? data['grade']
-            : 'غير محدد';
-    final reason = data['reason'] ?? 'غير محدد';
-    final date = data['date'] ?? 'غير محدد';
-    final time = data['time'] ?? 'غير محدد';
-    final attachedFileUrl = data['attachedFileUrl'];
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: Text("تفاصيل الطلب", style: TextStyle(color: Colors.white)),
+        title: Text(
+          "تصاريح الخروج من الحصة",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
@@ -43,178 +22,130 @@ class RequestDetailsScreen extends StatelessWidget {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // الصندوق الرمادي
-            Container(
-              padding: EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "الطالبة:",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(studentName, textAlign: TextAlign.center),
-                  SizedBox(height: 10),
-                  Text(
-                    "الصف:",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(grade.toString(), textAlign: TextAlign.center),
-                  SizedBox(height: 10),
-                  Text(
-                    "سبب الاستئذان:",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(reason, textAlign: TextAlign.center),
-                  SizedBox(height: 10),
-                  Text(
-                    "وقت الاستئذان:",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text("$time", textAlign: TextAlign.center),
-                ],
-              ),
-            ),
-
-            // زر عرض الملف (إذا وُجد)
-            if (attachedFileUrl != null && attachedFileUrl.isNotEmpty) ...[
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  try {
-                    final uri = Uri.parse(attachedFileUrl);
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri);
-                    } else {
-                      throw Exception('Failed to launch URL');
-                    }
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("حدث خطأ أثناء فتح الملف")),
+        padding: const EdgeInsets.all(16.0),
+        child: StreamBuilder<QuerySnapshot>(
+          stream:
+              firestore
+                  .collection('requests') // استخدام نفس المجموعة عند الحفظ
+                  .where(
+                    'status',
+                    isEqualTo: 'active',
+                  ) // عرض الطلبات النشطة فقط
+                  .orderBy(
+                    'exitTime',
+                    descending: true,
+                  ) // ترتيب الطلبات حسب وقت الخروج
+                  .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Text("خطأ: ${snapshot.error.toString()}"));
+            }
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Center(child: CircularProgressIndicator());
+            }
+            final requests = snapshot.data!.docs;
+            if (requests.isEmpty) {
+              return Center(
+                child: Text(
+                  "لا توجد تصاريح نشطة حتى الآن.",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              );
+            }
+            return ListView.builder(
+              itemCount: requests.length,
+              itemBuilder: (context, index) {
+                final request = requests[index];
+                final data = request.data() as Map<String, dynamic>;
+                final exitTime = (data['exitTime'] as Timestamp).toDate();
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => RequestDetailsScreen(
+                              studentName: data['studentName'],
+                              grade: data['grade'],
+                              teacherName: data['teacherName'],
+                              exitTime: DateFormat(
+                                'yyyy-MM-dd – HH:mm',
+                              ).format(exitTime),
+                              requestId: request.id, // تمرير معرف الطلب
+                            ),
+                      ),
                     );
-                  }
-                },
-                child: Text("عرض الملف", style: TextStyle(color: Colors.blue)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[200],
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ] else ...[
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text("لا يوجد ملف لعرضه")));
-                },
-                child: Text("عرض الملف", style: TextStyle(color: Colors.blue)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[200],
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-
-            // أزرار القبول والرفض
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        await FirebaseFirestore.instance
-                            .collection('requests')
-                            .doc(request.id)
-                            .update({
-                              'status': 'completed',
-                              'decision': 'accepted',
-                              'timestamp': FieldValue.serverTimestamp(),
-                            });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("تم قبول الطلب")),
-                        );
-                        Navigator.pop(context); // العودة إلى الشاشة السابقة
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("حدث خطأ أثناء قبول الطلب")),
-                        );
-                      }
-                    },
-                    child: Text("قبول", style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[900],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  },
+                  child: Card(
+                    elevation: 4,
+                    margin: EdgeInsets.only(bottom: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "الطالبة: ${data['studentName']}",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "الصف: ${data['grade']}",
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            "المعلمة: ${data['teacherName']}",
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                "وقت الخروج: ${DateFormat('hh:mm a').format(exitTime)}",
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  await _deleteRequest(request.id);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text("تم حذف الطلب بنجاح."),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ),
-                SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        await FirebaseFirestore.instance
-                            .collection('excuses')
-                            .doc(request.id)
-                            .update({
-                              'status': 'completed',
-                              'decision': 'accepted', // أو 'rejected'
-                              'timestamp': FieldValue.serverTimestamp(),
-                            });
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text("تم رفض الطلب")));
-                        Navigator.pop(context); // العودة إلى الشاشة السابقة
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("حدث خطأ أثناء رفض الطلب")),
-                        );
-                      }
-                    },
-                    child: Text("رفض", style: TextStyle(color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[900],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                );
+              },
+            );
+          },
         ),
       ),
     );
+  }
+
+  // دالة لحذف الطلب
+  Future<void> _deleteRequest(String requestId) async {
+    try {
+      await firestore.collection('requests').doc(requestId).delete();
+      print("✅ تم حذف الطلب بنجاح.");
+    } catch (e) {
+      print("❌ خطأ أثناء حذف الطلب: $e");
+      rethrow;
+    }
   }
 }

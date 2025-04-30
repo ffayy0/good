@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mut6/RequestsListScreen.dart';
-import 'package:mut6/widgets/custom_button_auth.dart';
+import 'widgets/custom_button_auth.dart';
 
 class SchoolScreen extends StatelessWidget {
   final String schoolName;
@@ -9,7 +9,7 @@ class SchoolScreen extends StatelessWidget {
 
   void _logout(BuildContext context) {
     print("تم تسجيل الخروج بنجاح");
-    Navigator.pushReplacementNamed(context, '/login');
+    Navigator.pushReplacementNamed(context, '/home');
   }
 
   @override
@@ -79,14 +79,6 @@ class SchoolScreen extends StatelessWidget {
                       Navigator.pushNamed(context, '/AddAdminScreen');
                     },
                   ),
-                  const SizedBox(height: 35),
-                  CustomButtonAuth(
-                    title: "تغيير موقع المدرسة",
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/MapScreen');
-                    },
-                  ),
-
                   const SizedBox(height: 35),
                   CustomButtonAuth(
                     title: "وقت الحضور الصباحي",

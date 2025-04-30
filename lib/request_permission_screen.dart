@@ -7,12 +7,14 @@ import 'package:file_picker/file_picker.dart';
 class RequestPermissionScreen extends StatefulWidget {
   final String studentId;
   final String studentName;
+  final String schoolId;
 
   const RequestPermissionScreen({
-    super.key,
+    Key? key,
     required this.studentId,
     required this.studentName,
-  });
+    required this.schoolId,
+  }) : super(key: key);
 
   @override
   _RequestPermissionScreenState createState() =>
@@ -25,6 +27,42 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
   TimeOfDay? selectedTime;
   PlatformFile? pickedFile;
   String? uploadedFileUrl;
+
+  // متغيرات لتخزين الصف والفئة الديناميكية
+  String stage = "غير محدد"; // المرحلة
+  String schoolClass = "غير محدد"; // الفصل
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchStudentData(); // جلب بيانات الطالب عند تحميل الشاشة
+  }
+
+  // جلب بيانات الطالب من Firestore
+  Future<void> _fetchStudentData() async {
+    try {
+      final studentSnapshot =
+          await FirebaseFirestore.instance
+              .collection('students') // اسم الكولكشن الذي يحتوي بيانات الطلاب
+              .doc(widget.studentId) // معرف الطالب
+              .get();
+      if (studentSnapshot.exists) {
+        final data = studentSnapshot.data() as Map<String, dynamic>;
+        setState(() {
+          stage = data['stage'] ?? 'غير محدد'; // المرحلة
+          schoolClass = data['schoolClass'] ?? 'غير محدد'; // الفصل
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("لم يتم العثور على بيانات الطالب")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("حدث خطأ أثناء جلب بيانات الطالب: $e")),
+      );
+    }
+  }
 
   Future<void> _pickAndUploadFile() async {
     try {
@@ -53,19 +91,55 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
     }
   }
 
+  Future<void> _submitRequest() async {
+    if (_validateFields()) {
+      try {
+        // تحديد الصف والفصل بشكل ديناميكي
+        final grade = "$stage/$schoolClass";
+
+        await FirebaseFirestore.instance.collection('exitPermits').add({
+          'studentId': widget.studentId,
+          'studentName': widget.studentName,
+          'schoolClass': schoolClass,
+          'reason': reasonController.text.trim(),
+          'date':
+              selectedDate != null
+                  ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
+                  : '',
+          'time': selectedTime != null ? _formatTime(selectedTime!) : '',
+          'attachedFileUrl': uploadedFileUrl ?? '',
+          'timestamp': DateTime.now(),
+          'grade': grade, // ✅ الصف والفصل الديناميكي
+          'status': null, // ✅ لضمان التوافق مع الفلترة
+          'schoolId': widget.schoolId, // ✅ تخزين schoolId
+        });
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("تم إرسال الطلب بنجاح!")));
+        _clearFields();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("حدث خطأ أثناء إرسال الطلب: $e")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: Text('طلب الاستئذان', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'طلب الاستئذان',
+          style: TextStyle(color: Colors.white),
+        ),
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(
@@ -82,34 +156,7 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
               ),
               CustomLabel(text: 'التاريخ'),
               InkWell(
-                onTap: () async {
-                  final now = DateTime.now();
-                  final DateTime? pickedDate = await showDatePicker(
-                    context: context,
-                    initialDate: now,
-                    firstDate: now, // يمنع اختيار تواريخ سابقة
-                    lastDate: DateTime(2100),
-                    builder: (BuildContext context, Widget? child) {
-                      return Theme(
-                        data: ThemeData.light().copyWith(
-                          colorScheme: ColorScheme.light(
-                            primary: const Color.fromARGB(255, 11, 40, 66),
-                            onPrimary: const Color.fromARGB(255, 221, 227, 230),
-                            surface: const Color.fromARGB(255, 230, 232, 234),
-                            onSurface: Colors.black,
-                          ),
-                          dialogBackgroundColor: Colors.white,
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
-                  if (pickedDate != null) {
-                    setState(() {
-                      selectedDate = pickedDate;
-                    });
-                  }
-                },
+                onTap: _selectDate,
                 child: AbsorbPointer(
                   child: CustomTextField(
                     controller: TextEditingController(
@@ -124,50 +171,7 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
               ),
               CustomLabel(text: 'الوقت'),
               InkWell(
-                onTap: () async {
-                  final now = DateTime.now();
-                  final TimeOfDay? pickedTime = await showTimePicker(
-                    context: context,
-                    initialTime: TimeOfDay.now(),
-                    builder: (BuildContext context, Widget? child) {
-                      return Theme(
-                        data: ThemeData.light().copyWith(
-                          colorScheme: ColorScheme.light(
-                            primary: const Color.fromARGB(255, 17, 34, 49),
-                            onPrimary: const Color.fromARGB(255, 229, 232, 235),
-                            surface: const Color.fromARGB(255, 232, 234, 236),
-                            onSurface: Colors.black,
-                          ),
-                          dialogBackgroundColor: Colors.white,
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
-                  if (pickedTime != null) {
-                    // التحقق من أن الوقت المختار ليس قبل الوقت الحالي
-                    final selectedDateTime = DateTime(
-                      selectedDate?.year ?? now.year,
-                      selectedDate?.month ?? now.month,
-                      selectedDate?.day ?? now.day,
-                      pickedTime.hour,
-                      pickedTime.minute,
-                    );
-                    if (selectedDateTime.isBefore(now)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            "لا يمكنك اختيار وقت قبل الوقت الحالي.",
-                          ),
-                        ),
-                      );
-                      return;
-                    }
-                    setState(() {
-                      selectedTime = pickedTime;
-                    });
-                  }
-                },
+                onTap: _selectTime,
                 child: AbsorbPointer(
                   child: CustomTextField(
                     controller: TextEditingController(
@@ -180,16 +184,6 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
                   ),
                 ),
               ),
-              if (selectedTime != null)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(
-                      "الوقت المختار: ${_formatTime(selectedTime!)}",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ),
               const SizedBox(height: 20),
               CustomLabel(text: 'إرفاق ملف PDF (اختياري)'),
               InkWell(
@@ -206,7 +200,7 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
                       pickedFile != null
                           ? "ملف مرفوع: ${pickedFile!.name}"
                           : "اضغط لاختيار ملف PDF",
-                      style: TextStyle(fontSize: 16, color: Colors.blue),
+                      style: const TextStyle(fontSize: 16, color: Colors.blue),
                     ),
                   ),
                 ),
@@ -214,47 +208,17 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
               const SizedBox(height: 40),
               SizedBox(
                 width: double.infinity,
-                child: CustomButtonAuth(
-                  title: 'إرسال',
-                  onPressed: () async {
-                    if (_validateFields()) {
-                      try {
-                        final stage =
-                            "ثالث ابتدائى"; // استبدل هذه القيمة بالقيمة الفعلية
-                        final schoolClass =
-                            "3"; // استبدل هذه القيمة بالقيمة الفعلية
-                        final grade = "$stage/$schoolClass";
-                        await FirebaseFirestore.instance.collection('excuses').add({
-                          'studentId': widget.studentId,
-                          'studentName': widget.studentName,
-                          'schoolClass': schoolClass,
-                          'reason': reasonController.text.trim(),
-                          'date':
-                              selectedDate != null
-                                  ? "${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}"
-                                  : '',
-                          'time':
-                              selectedTime != null
-                                  ? _formatTime(selectedTime!)
-                                  : '',
-                          'attachedFileUrl': uploadedFileUrl ?? '',
-                          'timestamp': DateTime.now(),
-                          'grade': grade,
-                          'status': 'pending',
-                        });
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("تم إرسال الطلب بنجاح!")),
-                        );
-                        _clearFields();
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("حدث خطأ أثناء إرسال الطلب: $e"),
-                          ),
-                        );
-                      }
-                    }
-                  },
+                child: MaterialButton(
+                  height: 50,
+                  color: const Color.fromARGB(255, 1, 113, 189),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  onPressed: _submitRequest,
+                  child: const Text(
+                    'إرسال',
+                    style: TextStyle(color: Colors.white, fontSize: 20),
+                  ),
                 ),
               ),
             ],
@@ -262,6 +226,60 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() => selectedDate = picked);
+    }
+  }
+
+  Future<void> _selectTime() async {
+    final now = DateTime.now();
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: ColorScheme.light(
+              primary: const Color.fromARGB(255, 17, 34, 49),
+              onPrimary: const Color.fromARGB(255, 229, 232, 235),
+              surface: const Color.fromARGB(255, 232, 234, 236),
+              onSurface: Colors.black,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime != null) {
+      // التحقق من أن الوقت المختار ليس قبل الوقت الحالي
+      final selectedDateTime = DateTime(
+        selectedDate?.year ?? now.year,
+        selectedDate?.month ?? now.month,
+        selectedDate?.day ?? now.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+      if (selectedDateTime.isBefore(now)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("لا يمكنك اختيار وقت قبل الوقت الحالي.")),
+        );
+        return;
+      }
+      setState(() {
+        selectedTime = pickedTime;
+      });
+    }
   }
 
   String _formatTime(TimeOfDay time) {
@@ -277,7 +295,7 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
         selectedTime == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('يرجى ملء جميع الحقول')));
+      ).showSnackBar(const SnackBar(content: Text('يرجى ملء جميع الحقول')));
       return false;
     }
     return true;
@@ -298,7 +316,7 @@ class CustomTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
 
-  CustomTextField({required this.controller, required this.hintText});
+  const CustomTextField({required this.controller, required this.hintText});
 
   @override
   Widget build(BuildContext context) {
@@ -321,30 +339,10 @@ class CustomTextField extends StatelessWidget {
   }
 }
 
-class CustomButtonAuth extends StatelessWidget {
-  final void Function()? onPressed;
-  final String title;
-
-  const CustomButtonAuth({super.key, this.onPressed, required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialButton(
-      height: 50,
-      minWidth: 200,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-      color: const Color.fromARGB(255, 1, 113, 189),
-      textColor: Colors.white,
-      onPressed: onPressed,
-      child: Text(title, style: TextStyle(fontSize: 20)),
-    );
-  }
-}
-
 class CustomLabel extends StatelessWidget {
   final String text;
 
-  CustomLabel({required this.text});
+  const CustomLabel({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -354,7 +352,7 @@ class CustomLabel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 5),
         child: Text(
           text,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
             color: Colors.blue,

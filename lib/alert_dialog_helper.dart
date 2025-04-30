@@ -5,10 +5,10 @@ class AlertDialogHelper extends StatelessWidget {
   final String message;
 
   const AlertDialogHelper({
-    Key? key,
+    super.key,
     required this.title,
     required this.message,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -73,8 +73,7 @@ class CustomButtonAuth extends StatelessWidget {
   final void Function()? onPressed;
   final String title;
 
-  const CustomButtonAuth({Key? key, this.onPressed, required this.title})
-    : super(key: key);
+  const CustomButtonAuth({super.key, this.onPressed, required this.title});
 
   @override
   Widget build(BuildContext context) {

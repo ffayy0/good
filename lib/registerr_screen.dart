@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 
@@ -24,42 +23,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController emailController = TextEditingController();
   bool _isLoading = false;
 
-  // المرحلة
   String? selectedStage;
   final List<String> schoolStages = ['ابتدائي', 'متوسط', 'ثانوي'];
-  // بيانات المرسل
-  final String senderEmail = "8ffaay01@gmail.com"; // ✉ بريد المرسل
-  final String senderPassword = "vljn jaxv hukr qbct"; // 🔑 كلمة مرور التطبيق
+
+  final String senderEmail = "8ffaay01@gmail.com";
+  final String senderPassword = "vljn jaxv hukr qbct";
 
   Future<LatLng?> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('خدمة الموقع غير مفعلة')));
+      _showSnackBar('خدمة الموقع غير مفعلة');
       return null;
     }
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('تم رفض صلاحية الموقع')));
+        _showSnackBar('تم رفض صلاحية الموقع');
         return null;
       }
     }
     if (permission == LocationPermission.deniedForever) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('صلاحية الموقع مرفوضة نهائيًا')),
-      );
+      _showSnackBar('صلاحية الموقع مرفوضة نهائيًا');
       return null;
     }
     final position = await Geolocator.getCurrentPosition();
     return LatLng(position.latitude, position.longitude);
   }
 
-  // ✅ دالة إرسال البريد الإلكتروني
   Future<void> sendConfirmationEmail(
     String recipientEmail,
     String schoolName,
@@ -72,14 +63,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ..recipients.add(recipientEmail)
           ..subject = "تأكيد إنشاء حساب المدرسة"
           ..text =
-              "مرحبًا،\n\n"
-              "تهانينا! تم إنشاء حساب المدرسة '$schoolName' بنجاح.\n\n"
-              "يمكنك الآن تسجيل الدخول واستخدام النظام.\n\n"
-              "تحياتنا، فريق متابع.";
+              "مرحبًا،\n\nتهانينا! تم إنشاء حساب المدرسة '$schoolName' بنجاح.\n\nيمكنك الآن تسجيل الدخول واستخدام النظام.\n\nتحياتنا، فريق متابع.";
 
     try {
       await send(message, smtpServer);
-      print("📩 تم إرسال البريد الإلكتروني بنجاح إلى $recipientEmail");
     } catch (e) {
       print("❌ خطأ في إرسال البريد: $e");
     }
@@ -92,40 +79,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final schoolName = schoolNameController.text.trim();
     final schoolLocation = schoolLocationController.text.trim();
 
-    // التحقق من الاسم
-    if (schoolName.isEmpty ||
-        schoolName.length < 3 ||
-        !RegExp(r'^[\u0600-\u06FFa-zA-Z\s]+$').hasMatch(schoolName)) {
-      _showErrorDialog('يرجى إدخال اسم مدرسة صحيح (٣ أحرف أو أكثر).');
+    if (schoolName.isEmpty || schoolName.length < 3) {
+      _showSnackBar('اسم المدرسة يجب أن يكون ٣ أحرف أو أكثر.');
       return;
     }
 
-    // التحقق من الإيميل
     if (email.isEmpty ||
         !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$').hasMatch(email)) {
-      _showErrorDialog('يرجى إدخال بريد إلكتروني صحيح.');
+      _showSnackBar('يرجى إدخال بريد إلكتروني صحيح.');
+      return;
+    }
+
+    var emailExists =
+        await FirebaseFirestore.instance
+            .collection('schools')
+            .where('email', isEqualTo: email)
+            .get();
+    if (emailExists.docs.isNotEmpty) {
+      _showSnackBar('البريد الإلكتروني مستخدم بالفعل.');
       return;
     }
 
     if (selectedStage == null) {
-      _showErrorDialog('يرجى اختيار مرحلة المدرسة.');
+      _showSnackBar('يرجى اختيار مرحلة المدرسة.');
       return;
     }
 
     if (schoolLocation.isEmpty) {
-      _showErrorDialog('يرجى إدخال موقع المدرسة.');
+      _showSnackBar('يرجى إدخال موقع المدرسة.');
       return;
     }
-    if (password.isEmpty || password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('كلمة المرور يجب أن تكون بطول 6 أحرف أو أكثر')),
+    String passwordPattern = r'^(?=.*[a-zA-Z0-9!@#\$&\.]).{6,}$';
+    RegExp regExp = RegExp(passwordPattern);
+    if (password.isEmpty || !regExp.hasMatch(password)) {
+      _showSnackBar(
+        'كلمة المرور يجب أن تحتوي على حروف أو أرقام أو رموز وطول لا يقل عن ٦ أحرف.',
       );
       return;
     }
-    // التحقق من كلمة المرور
 
     if (password != confirmPassword) {
-      _showErrorDialog('كلمات المرور غير متطابقة.');
+      _showSnackBar('كلمة المرور وتأكيدها غير متطابقين.');
       return;
     }
 
@@ -137,7 +131,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       double? latitude;
       double? longitude;
-
       try {
         List<String> coordinates = schoolLocation.split(',');
         if (coordinates.length == 2) {
@@ -159,58 +152,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'email': email,
             'stage': selectedStage,
             'createdAt': DateTime.now(),
-            'attendanceStartTime':
-                '07:30', // ✅ إضافة حقل الوقت كقيمة فاضية عند التسجيل
+            'attendanceStartTime': '07:30',
           });
 
-      // ✅ إرسال البريد الإلكتروني بعد إنشاء الحساب
       await sendConfirmationEmail(email, schoolName);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم إنشاء الحساب وتخزين البيانات بنجاح!')),
-      );
-
+      _showSnackBar('تم إنشاء الحساب بنجاح!');
       Navigator.pop(context);
     } on FirebaseAuthException catch (e) {
-      String errorMessage = '';
       if (e.code == 'email-already-in-use') {
-        errorMessage = 'البريد الإلكتروني مستخدم بالفعل.';
+        _showSnackBar('البريد الإلكتروني مستخدم بالفعل.');
       } else {
-        errorMessage = 'حدث خطأ أثناء إنشاء الحساب.';
+        _showSnackBar('حدث خطأ أثناء إنشاء الحساب.');
       }
-      _showErrorDialog(errorMessage);
     } catch (e) {
-      _showErrorDialog('حدث خطأ غير متوقع: $e');
+      _showSnackBar('حدث خطأ غير متوقع.');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-            ),
-            title: const Text(
-              'خطأ',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-                fontSize: 22,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            content: Text(message, textAlign: TextAlign.center),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('حسناً'),
-              ),
-            ],
-          ),
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.grey[800],
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      ),
     );
   }
 

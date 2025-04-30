@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class MapPickerScreen extends StatefulWidget {
+  const MapPickerScreen({super.key});
+
   @override
   _MapPickerScreenState createState() => _MapPickerScreenState();
 }
@@ -49,9 +51,9 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _confirmLocation, // تأكيد الموقع
+        onPressed: _confirmLocation,
+        backgroundColor: const Color.fromARGB(255, 1, 113, 189), // تأكيد الموقع
         child: Icon(Icons.check),
-        backgroundColor: const Color.fromARGB(255, 1, 113, 189),
       ),
     );
   }

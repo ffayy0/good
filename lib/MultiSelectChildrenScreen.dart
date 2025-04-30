@@ -6,10 +6,10 @@ class MultiSelectChildrenScreen extends StatefulWidget {
   final String guardianId; // معرف ولي الأمر المسجل
   final String serviceType; // نوع الخدمة (مثل "التوكيل")
   const MultiSelectChildrenScreen({
-    Key? key,
+    super.key,
     required this.guardianId,
     required this.serviceType,
-  }) : super(key: key);
+  });
 
   @override
   _MultiSelectChildrenScreenState createState() =>

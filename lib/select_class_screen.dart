@@ -37,9 +37,9 @@ class SelectClassScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder:
                             (context) => StudentsListScreen(
-                              stage: stage,
+                              stage: stage, // تأكد من أن هذه القيمة صحيحة
                               schoolClass:
-                                  '$classNumber', // تمرير رقم الفصل فقط للصفحة التالية
+                                  '$classNumber', // تأكد من أن هذه القيمة صحيحة
                             ),
                       ),
                     );

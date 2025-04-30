@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 import 'package:mut6/widgets/custom_button_auth.dart' show CustomButtonAuth;
-
 import 'widgets/custom_text_field.dart' show CustomTextField;
 
 class AddTeacherScreen extends StatelessWidget {
@@ -15,10 +14,7 @@ class AddTeacherScreen extends StatelessWidget {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController specialtyController = TextEditingController();
 
-  // تعريف الألوان المستخدمة
-  final Color _iconColor = const Color(
-    0xFF007AFF,
-  ); // أزرق مشابه للون iOS الافتراضي
+  final Color _iconColor = const Color(0xFF007AFF);
   final String senderEmail = "8ffaay01@gmail.com";
   final String senderPassword = "urwn frcb fzug ucyz"; // App Password
 
@@ -29,9 +25,8 @@ class AddTeacherScreen extends StatelessWidget {
   ) async {
     final firestore = FirebaseFirestore.instance;
 
-    final idCheck =
-        await firestore.collection('teachers').where('id', isEqualTo: id).get();
-    if (idCheck.docs.isNotEmpty) return "رقم المعلم مستخدم من قبل.";
+    final idCheck = await firestore.collection('teachers').doc(id).get();
+    if (idCheck.exists) return "رقم المعلم مستخدم من قبل.";
 
     final emailCheck =
         await firestore
@@ -57,19 +52,16 @@ class AddTeacherScreen extends StatelessWidget {
     String email = emailController.text.trim();
     String specialty = specialtyController.text.trim();
 
-    // التحقق من أن جميع الحقول ممتلئة
-    if ([name, id, phone, email, specialty].any((element) => element.isEmpty)) {
+    if ([name, id, phone, email, specialty].any((e) => e.isEmpty)) {
       showSnackBar(context, "يجب ملء جميع الحقول قبل الإضافة");
       return;
     }
 
-    // التحقق من الاسم الثلاثي
     if (name.split(' ').length < 3) {
       showSnackBar(context, "الرجاء إدخال الاسم الثلاثي على الأقل");
       return;
     }
 
-    // التحقق من رقم الجوال
     final phoneRegex = RegExp(r'^05\d{8}$');
     if (!phoneRegex.hasMatch(phone)) {
       showSnackBar(
@@ -79,7 +71,6 @@ class AddTeacherScreen extends StatelessWidget {
       return;
     }
 
-    // التحقق من صيغة البريد الإلكتروني
     if (!RegExp(
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$',
     ).hasMatch(email)) {
@@ -87,20 +78,17 @@ class AddTeacherScreen extends StatelessWidget {
       return;
     }
 
-    // التحقق من طول رقم المعلم (10 أرقام)
     final idRegex = RegExp(r'^\d{10}$');
     if (!idRegex.hasMatch(id)) {
-      showSnackBar(context, "رقم المعلم يجب أن يتكون من 10 أرقام فقط");
+      showSnackBar(context, "رقم هوية المعلم يجب أن يتكون من 10 أرقام فقط");
       return;
     }
 
-    // التحقق من أن التخصص غير فارغ
     if (specialty.isEmpty) {
       showSnackBar(context, "يرجى إدخال التخصص");
       return;
     }
 
-    // التحقق من التكرار
     String? duplicateMessage = await checkTeacherDuplicates(id, email, phone);
     if (duplicateMessage != null) {
       showSnackBar(context, "⚠️ $duplicateMessage");
@@ -109,7 +97,7 @@ class AddTeacherScreen extends StatelessWidget {
 
     try {
       String password = generateRandomPassword();
-      await FirebaseFirestore.instance.collection('teachers').add({
+      await FirebaseFirestore.instance.collection('teachers').doc(id).set({
         'name': name,
         'id': id,
         'phone': phone,
@@ -117,7 +105,6 @@ class AddTeacherScreen extends StatelessWidget {
         'specialty': specialty,
         'password': password,
         'schoolId': FirebaseAuth.instance.currentUser!.uid,
-
         'createdAt': Timestamp.now(),
       });
 
@@ -127,7 +114,6 @@ class AddTeacherScreen extends StatelessWidget {
         "تمت إضافة المعلم بنجاح، وتم إرسال كلمة المرور عبر البريد",
       );
 
-      // مسح الحقول بعد الإضافة
       nameController.clear();
       idController.clear();
       phoneController.clear();
@@ -139,7 +125,6 @@ class AddTeacherScreen extends StatelessWidget {
     }
   }
 
-  // ✅ إرسال البريد الإلكتروني
   Future<void> sendEmail(
     String recipientEmail,
     String name,
@@ -182,10 +167,8 @@ class AddTeacherScreen extends StatelessWidget {
     }
   }
 
-  // ✅ اختيار SMTP بناءً على نوع البريد
   SmtpServer getSmtpServer(String email, String password) {
     String domain = email.split('@').last.toLowerCase();
-
     switch (domain) {
       case 'gmail.com':
         return gmail(email, password);
@@ -239,7 +222,6 @@ class AddTeacherScreen extends StatelessWidget {
     }
   }
 
-  // ✅ توليد كلمة مرور عشوائية
   String generateRandomPassword() {
     const chars =
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -277,35 +259,35 @@ class AddTeacherScreen extends StatelessWidget {
               controller: nameController,
               icon: Icons.person,
               hintText: "اسم المعلم",
-              iconColor: _iconColor, // لون الأيقونة
+              iconColor: _iconColor,
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: idController,
               icon: Icons.badge,
-              hintText: "رقم المعلم",
-              iconColor: _iconColor, // لون الأيقونة
+              hintText: "رقم هوية المعلم",
+              iconColor: _iconColor,
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: phoneController,
               icon: Icons.phone,
               hintText: "رقم الهاتف",
-              iconColor: _iconColor, // لون الأيقونة
+              iconColor: _iconColor,
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: emailController,
               icon: Icons.email,
               hintText: "البريد الإلكتروني",
-              iconColor: _iconColor, // لون الأيقونة
+              iconColor: _iconColor,
             ),
             SizedBox(height: 15),
             CustomTextField(
               controller: specialtyController,
               icon: Icons.school,
               hintText: "التخصص",
-              iconColor: _iconColor, // لون الأيقونة
+              iconColor: _iconColor,
             ),
             SizedBox(height: 20),
             CustomButtonAuth(

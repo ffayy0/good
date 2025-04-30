@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AlertScreen extends StatelessWidget {
+  const AlertScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -54,8 +56,7 @@ class CustomButtonAuth extends StatelessWidget {
   final void Function()? onPressed;
   final String title;
 
-  const CustomButtonAuth({Key? key, this.onPressed, required this.title})
-    : super(key: key);
+  const CustomButtonAuth({super.key, this.onPressed, required this.title});
 
   @override
   Widget build(BuildContext context) {

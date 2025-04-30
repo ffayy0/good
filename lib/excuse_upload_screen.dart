@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart'; // لاختيار الملف
 import 'package:firebase_storage/firebase_storage.dart'; // لتخزين الملف في Firebase Storage
-import 'package:cloud_firestore/cloud_firestore.dart'; // لإدارة Firestore
-import 'package:mut6/parent_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mut6/parent_screen.dart'; // لإدارة Firestore
 
 class ExcuseUploadScreen extends StatefulWidget {
   final String day;

@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mut6/RequestsListScreen.dart';
+import 'package:mut6/call_screen.dart';
 
 class AgentChildrenScreen extends StatefulWidget {
   final String agentId; // معرف الوكيل
-  const AgentChildrenScreen({Key? key, required this.agentId})
-    : super(key: key);
+  const AgentChildrenScreen({
+    super.key,
+    required this.agentId,
+    required String guardianId,
+  });
 
   @override
   _AgentChildrenScreenState createState() => _AgentChildrenScreenState();
@@ -12,6 +17,7 @@ class AgentChildrenScreen extends StatefulWidget {
 
 class _AgentChildrenScreenState extends State<AgentChildrenScreen> {
   late Future<List<Map<String, dynamic>>> _studentsFuture;
+  Map<String, bool> selectedStudents = {}; // التابعين المختارين
 
   @override
   void initState() {
@@ -19,40 +25,27 @@ class _AgentChildrenScreenState extends State<AgentChildrenScreen> {
     _studentsFuture = _fetchStudentsByAgentId(widget.agentId);
   }
 
-  // دالة لجلب أسماء الطلاب المرتبطين بالوكيل من Firestore
   Future<List<Map<String, dynamic>>> _fetchStudentsByAgentId(
     String agentId,
   ) async {
     List<Map<String, dynamic>> students = [];
     try {
-      // جلب جميع التوكيلات المرتبطة بالوكيل
       final querySnapshot =
           await FirebaseFirestore.instance
-              .collection('AgentStudents') // مجموعة التوكيلات
+              .collection('AgentStudents')
               .where('agentId', isEqualTo: agentId)
               .get();
 
       for (var doc in querySnapshot.docs) {
-        // لكل توكيل، استرداد بيانات الطالب من المجموعة students
-        final studentSnapshot =
-            await FirebaseFirestore.instance
-                .collection('students')
-                .doc(doc['studentId']) // معرف الطالب المرتبط بالتوكيل
-                .get();
-
-        if (studentSnapshot.exists) {
-          students.add({
-            "id": studentSnapshot.id,
-            "name": studentSnapshot['name'], // اسم الطالب
-          });
-        } else {
-          print(
-            "⚠️ الطالب مع المعرف ${doc['studentId']} غير موجود في Firestore.",
-          );
-        }
+        students.add({
+          "id": doc['studentId'],
+          "name": doc['studentName'],
+          "stage": doc['stage'],
+          "schoolClass": doc['schoolClass'],
+        });
       }
     } catch (e) {
-      print("❌ خطأ أثناء جلب بيانات الطلاب: $e");
+      print("❌ خطأ أثناء جلب بيانات التابعين: $e");
     }
     return students;
   }
@@ -103,6 +96,7 @@ class _AgentChildrenScreenState extends State<AgentChildrenScreen> {
                       itemCount: students.length,
                       itemBuilder: (context, index) {
                         final student = students[index];
+                        final studentId = student['id'];
                         return Container(
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.symmetric(
@@ -115,20 +109,39 @@ class _AgentChildrenScreenState extends State<AgentChildrenScreen> {
                           ),
                           child: Row(
                             textDirection: TextDirection.rtl,
-                            mainAxisAlignment: MainAxisAlignment.end,
                             children: [
-                              Expanded(
-                                child: Text(
-                                  student["name"],
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                  textAlign: TextAlign.right,
-                                ),
+                              Checkbox(
+                                value: selectedStudents[studentId] ?? false,
+                                onChanged: (value) {
+                                  setState(() {
+                                    selectedStudents[studentId] = value!;
+                                  });
+                                },
+                                activeColor: Colors.blue,
                               ),
                               const SizedBox(width: 10),
-                              Icon(Icons.person, color: Colors.blue),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      student["name"],
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.right,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "المرحلة: ${student['stage']}، الصف: ${student['schoolClass']}",
+                                      style: const TextStyle(fontSize: 15),
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.person, color: Colors.blue),
                             ],
                           ),
                         );
@@ -138,6 +151,43 @@ class _AgentChildrenScreenState extends State<AgentChildrenScreen> {
                 },
               ),
             ),
+
+            // ✅ زر التالي تحت القائمة
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                final selectedList =
+                    selectedStudents.entries
+                        .where((entry) => entry.value == true)
+                        .map((entry) => entry.key)
+                        .toList();
+
+                if (selectedList.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('يرجى اختيار تابع واحد على الأقل')),
+                  );
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) =>
+                              RequestHelpScreen(studentId: '', studentName: ''),
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: EdgeInsets.symmetric(vertical: 15),
+                minimumSize: Size(double.infinity, 50),
+              ),
+              child: const Text(
+                "التالي",
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+            ),
+            const SizedBox(height: 30),
           ],
         ),
       ),

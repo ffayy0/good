@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mut6/attendence_screen.dart';
-import 'package:mut6/call_screen.dart';
 import 'request_permission_screen.dart'; // صفحة طلب الاستئذان
+import 'attendence_screen.dart'; // صفحة عرض سجل الحضور
+import 'call_screen.dart'; // صفحة طلب النداء
 
 class ChildrenScreen extends StatefulWidget {
   final String guardianId; // معرف ولي الأمر المسجل
-  final String
-  serviceType; // نوع الخدمة المختارة (مثل "الحضور" أو "طلب الاستئذان")
+  final String serviceType; // نوع الخدمة المختارة
 
   const ChildrenScreen({
     Key? key,
@@ -21,12 +20,11 @@ class ChildrenScreen extends StatefulWidget {
 
 class _ChildrenScreenState extends State<ChildrenScreen> {
   late Future<List<Map<String, dynamic>>> _studentsFuture;
-  String? _selectedStudentId; // معرف الطالب المختار
+  String? _selectedStudentId;
 
   @override
   void initState() {
     super.initState();
-    // جلب بيانات الطلاب بناءً على معرف ولي الأمر
     _studentsFuture = _fetchStudentsByGuardianId(widget.guardianId);
   }
 
@@ -35,7 +33,6 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
   ) async {
     List<Map<String, dynamic>> students = [];
     try {
-      // البحث مباشرة في المجموعة students
       final querySnapshot =
           await FirebaseFirestore.instance
               .collection('students')
@@ -48,6 +45,7 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
           "name": doc['name'],
           "schoolClass": doc['schoolClass'],
           "stage": doc['stage'],
+          "schoolId": doc['schoolId'], // ✅ إضافة schoolId
         });
       }
     } catch (e) {
@@ -56,9 +54,7 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
     return students;
   }
 
-  // دالة للتوجيه إلى الصفحة الصحيحة بناءً على الخدمة
   void _navigateToServiceScreen(List<Map<String, dynamic>> students) {
-    // التحقق من أن طالبًا واحدًا قد تم اختياره
     if (_selectedStudentId == null) {
       ScaffoldMessenger.of(
         context,
@@ -66,47 +62,47 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
       return;
     }
 
-    // العثور على بيانات الطالب المختار
     final selectedStudent = students.firstWhere(
       (student) => student["id"] == _selectedStudentId,
     );
 
-    // فتح الصفحة المخصصة بناءً على نوع الخدمة
     switch (widget.serviceType) {
-      case "attendance": // إذا كانت الخدمة هي "الحضور"
+      case "attendance":
         Navigator.push(
           context,
           MaterialPageRoute(
             builder:
                 (context) => AttendanceScreen(
-                  studentId: selectedStudent["id"], // تمرير معرف الطالب
-                  guardianId: widget.guardianId, // تمرير معرف ولي الأمر
+                  studentId: selectedStudent["id"],
+                  guardianId: widget.guardianId,
                 ),
           ),
         );
         break;
 
-      case "permission": // إذا كانت الخدمة هي "طلب الاستئذان"
+      case "permission":
         Navigator.push(
           context,
           MaterialPageRoute(
             builder:
                 (context) => RequestPermissionScreen(
                   studentId: selectedStudent["id"],
-                  studentName: selectedStudent["name"], // اسم الطالب
+                  studentName: selectedStudent["name"],
+                  schoolId: selectedStudent["schoolId"], // ✅ تمرير schoolId
                 ),
           ),
         );
         break;
 
-      case "call_request": // إذا كانت الخدمة هي "طلب النداء"
+      case "call_request":
         Navigator.push(
           context,
           MaterialPageRoute(
             builder:
                 (context) => RequestHelpScreen(
                   studentId: selectedStudent["id"],
-                  studentName: selectedStudent["name"], // اسم الطالب
+                  studentName: selectedStudent["name"],
+                  // ملاحظة: إذا حبيت تمرر schoolId هنا أيضًا، خبرني أعدله لك
                 ),
           ),
         );
@@ -145,6 +141,13 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
         child: Column(
           children: [
             const SizedBox(height: 30),
+            // إضافة اللوجو هنا
+            Image.network(
+              'https://i.postimg.cc/DwnKf079/321e9c9d-4d67-4112-a513-d368fc26b0c0.jpg',
+              width: 200,
+              height: 189,
+            ),
+            const SizedBox(height: 30), // مسافة بين اللوجو والفقرات التالية
             Expanded(
               child: FutureBuilder<List<Map<String, dynamic>>>(
                 future: _studentsFuture,
@@ -189,7 +192,7 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                                   1,
                                   113,
                                   189,
-                                ), // لون الزر
+                                ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -213,7 +216,7 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
             ),
             const SizedBox(height: 20),
             SizedBox(
-              width: double.infinity, // عرض كامل
+              width: double.infinity,
               height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -223,7 +226,6 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                   ),
                 ),
                 onPressed: () {
-                  // الحصول على بيانات الطلاب من الـ FutureBuilder
                   _studentsFuture.then((students) {
                     _navigateToServiceScreen(students);
                   });

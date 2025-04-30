@@ -3,8 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ جديد
 import 'package:mut6/alert_dialog_helper.dart';
 
 class RequestHelpScreen extends StatefulWidget {
@@ -113,10 +112,14 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
     );
   }
 
-  void _saveRequestToFirestore() async {
+  Future<void> _saveRequestToFirestore() async {
     if (_requestSent || _parentLocation == null) return;
 
     try {
+      // ✅ جلب schoolId من SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      String? schoolId = prefs.getString('schoolId') ?? '';
+
       await FirebaseFirestore.instance.collection('pikup_call').add({
         'studentName': widget.studentName,
         'studentId': widget.studentId,
@@ -124,6 +127,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
         'status': 'جديد',
         'location':
             '${_parentLocation!.latitude}, ${_parentLocation!.longitude}',
+        'schoolId': schoolId, // ✅ إضافة معرف المدرسة هنا
       });
 
       setState(() {

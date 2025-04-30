@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mut6/attendence_names.dart';
-
 import 'widgets/custom_button_auth.dart';
 
 class SelectClassScreen extends StatelessWidget {

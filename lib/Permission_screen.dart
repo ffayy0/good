@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mut6/exit_request_details_screen.dart';
+import 'package:mut6/exit_permits_screen.dart'
+    show RequestDetailsScreen; // تأكد من المسار الصحيح
 
 class PermissionScreen extends StatelessWidget {
   @override
@@ -8,13 +9,14 @@ class PermissionScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: Text("طلبات الاستئذان", style: TextStyle(color: Colors.white)),
+        title: const Text(
+          "طلبات الاستئذان",
+          style: TextStyle(color: Colors.white),
+        ),
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(
@@ -22,50 +24,67 @@ class PermissionScreen extends StatelessWidget {
         child: StreamBuilder<QuerySnapshot>(
           stream:
               FirebaseFirestore.instance
-                  .collection('excuses')
+                  .collection('exitPermits')
                   .where(
                     'status',
-                    isEqualTo: null,
-                  ) // عرض الطلبات التي لم يتم قبولها أو رفضها
+                    isNull: true,
+                  ) // عرض الطلبات التي لا تحتوي على الحقل status أو تحتوي على null
                   .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
+              return const Center(child: CircularProgressIndicator());
             } else if (snapshot.hasError || !snapshot.hasData) {
-              return Center(child: Text("حدث خطأ أثناء جلب البيانات"));
+              return const Center(child: Text("حدث خطأ أثناء جلب البيانات"));
             } else {
               final requests = snapshot.data!.docs;
               if (requests.isEmpty) {
-                return Center(child: Text("لا توجد طلبات استئذان"));
+                return const Center(child: Text("لا توجد طلبات استئذان"));
               }
               return ListView.builder(
                 itemCount: requests.length,
                 itemBuilder: (context, index) {
                   final request = requests[index];
                   final data = request.data() as Map<String, dynamic>;
-                  final studentName = data['studentName'];
-                  final grade = data['grade']; // الحقل grade موجود الآن
+
+                  final studentName = data['studentName'] ?? 'غير محدد';
+                  final grade = data['grade'] ?? 'غير محدد';
+                  final schoolId = data['schoolId'] ?? 'غير محدد';
+                  final stage =
+                      grade != 'غير محدد'
+                          ? grade.toString().split('/').first
+                          : '';
+                  final schoolClass =
+                      grade != 'غير محدد'
+                          ? grade.toString().split('/').last
+                          : '';
+
                   return InkWell(
                     onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder:
-                              (context) =>
-                                  RequestDetailsScreen(request: request),
+                              (context) => RequestDetailsScreen(
+                                request: request,
+                                studentName: studentName,
+                                grade: grade,
+                                stage: stage,
+                                schoolClass: schoolClass,
+                                schoolId: schoolId,
+                              ),
                         ),
                       );
                     },
                     child: Container(
-                      margin: EdgeInsets.symmetric(vertical: 8),
-                      padding: EdgeInsets.all(15),
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.all(15),
                       decoration: BoxDecoration(
                         color: Colors.grey[300],
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         studentName,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),

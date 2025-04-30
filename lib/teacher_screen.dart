@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:mut6/aclass_screen.dart';
+import 'package:mut6/Classscreen.dart' show ClassScreen;
 import 'package:mut6/teacher_previous_requests_screen.dart';
 import 'package:mut6/widgets/teacher_custom_drawer.dart';
-import 'alert_screen.dart'; // استيراد صفحة AlertScreen
+import 'alert_screen.dart';
+import 'widgets/custom_button.dart'; // استيراد صفحة AlertScreen
 
 class StudyStageScreen extends StatefulWidget {
   final Duration exitDuration; // المدة المحددة
@@ -88,28 +89,32 @@ class _StudyStageScreenState extends State<StudyStageScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      key: _scaffoldKey, // إضافة المفتاح للتحكم في القائمة الجانبية
+      backgroundColor: Colors.white, // 🔽 تم تغيير لون الخلفية إلى أبيض نقي
+      key: _scaffoldKey,
       appBar: AppBar(
         backgroundColor: Colors.green,
         title: Text("المعلمين", style: TextStyle(color: Colors.white)),
         centerTitle: true,
-        automaticallyImplyLeading: false, // إزالة زر الرجوع
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: Icon(Icons.menu, color: Colors.white), // أيقونة القائمة
+            icon: Icon(Icons.menu, color: Colors.white),
             onPressed: () {
-              _scaffoldKey.currentState
-                  ?.openEndDrawer(); // فتح القائمة الجانبية
+              _scaffoldKey.currentState?.openEndDrawer();
             },
           ),
         ],
       ),
-      endDrawer: TeacherCustomDrawer(), // استخدام ملف TeacherCustomDrawer
+      endDrawer: TeacherCustomDrawer(),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            Image.network(
+              'https://i.postimg.cc/DwnKf079/321e9c9d-4d67-4112-a513-d368fc26b0c0.jpg',
+            ),
+            SizedBox(height: 20),
             Text(
               ":طلبات الخروج من الحصة",
               style: TextStyle(fontSize: 18, color: Colors.grey[700]),
@@ -136,29 +141,9 @@ class _StudyStageScreenState extends State<StudyStageScreen>
                 );
               },
             ),
-            // تم حذف النص "انتهت مدة الخروج!"
           ],
         ),
       ),
-    );
-  }
-}
-
-class CustomButton extends StatelessWidget {
-  final String title;
-  final VoidCallback? onPressed;
-  const CustomButton({required this.title, this.onPressed});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialButton(
-      height: 45,
-      minWidth: 250,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-      color: const Color.fromARGB(255, 1, 113, 189),
-      textColor: Colors.white,
-      onPressed: onPressed,
-      child: Text(title, style: TextStyle(fontSize: 18)),
     );
   }
 }

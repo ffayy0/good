@@ -4,48 +4,39 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // ✅ تم الإضافة
 
 class AddParentsScreen extends StatelessWidget {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   final String senderEmail = "8ffaay01@gmail.com"; // ✉️ بريد المرسل
   final String senderPassword = "vljn jaxv hukr qbct"; // 🔑 كلمة مرور التطبيق
-
-  // تعريف المتحكمات
   final TextEditingController nameController = TextEditingController();
   final TextEditingController idController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
-
-  // تعديل الألوان الرئيسية
-  final Color _iconColor = const Color(
-    0xFF007AFF,
-  ); // أزرق مشابه للون iOS الافتراضي
-  final Color _buttonColor = Colors.green; // اللون الأخضر للزر
-  final Color _textFieldFillColor =
-      Colors.grey[100]!; // رمادي فاتح جدًا للخلفية
-  final Color _textColor = Colors.black87; // نص أسود داكن (أكثر وضوحًا)
+  final Color _iconColor = const Color(0xFF007AFF);
+  final Color _buttonColor = Colors.green;
+  final Color _textFieldFillColor = Colors.grey[100]!;
+  final Color _textColor = Colors.black87;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // خلفية بيضاء
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: _buttonColor, // لون الشريط العلوي أصبح أخضر
+        backgroundColor: _buttonColor,
         elevation: 0,
         centerTitle: true,
         title: const Text(
           "إضافة أولياء الأمور",
           style: TextStyle(
-            color: Colors.white, // نص أبيض
+            color: Colors.white,
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.white,
-          ), // أيقونة الرجوع بيضاء
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -81,13 +72,11 @@ class AddParentsScreen extends StatelessWidget {
               Center(
                 child: ElevatedButton(
                   onPressed: () async {
-                    // يتم أخذ البيانات من الحقول المدخلة
                     String parentName = nameController.text.trim();
                     String parentId = idController.text.trim();
                     String phone = phoneController.text.trim();
                     String email = emailController.text.trim();
 
-                    // التحقق من أن جميع الحقول مملوءة
                     if (parentName.isEmpty ||
                         parentId.isEmpty ||
                         phone.isEmpty ||
@@ -100,7 +89,6 @@ class AddParentsScreen extends StatelessWidget {
                       return;
                     }
 
-                    // التحقق من صيغة اسم ولي الأمر (لا يقل عن ثلاث كلمات)
                     if (parentName.split(' ').length < 3) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -112,7 +100,6 @@ class AddParentsScreen extends StatelessWidget {
                       return;
                     }
 
-                    // التحقق من رقم الهاتف (يبدأ بـ 05 ويتكون من 10 أرقام)
                     if (!phone.startsWith('05') || phone.length != 10) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -124,7 +111,6 @@ class AddParentsScreen extends StatelessWidget {
                       return;
                     }
 
-                    // التحقق من صيغة البريد الإلكتروني
                     final emailRegex = RegExp(
                       r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                     );
@@ -137,7 +123,6 @@ class AddParentsScreen extends StatelessWidget {
                       return;
                     }
 
-                    // التحقق من أن رقم الهوية يتكون من 10 أرقام فقط
                     if (parentId.length != 10 ||
                         !RegExp(r'^\d{10}$').hasMatch(parentId)) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -150,7 +135,6 @@ class AddParentsScreen extends StatelessWidget {
                       return;
                     }
 
-                    // التحقق من عدم تكرار بيانات ولي الأمر
                     bool isDuplicate = await isParentDuplicate(
                       parentId,
                       email,
@@ -167,25 +151,38 @@ class AddParentsScreen extends StatelessWidget {
                       return;
                     }
 
-                    // توليد كلمة مرور عشوائية
                     String password = generateRandomPassword();
 
-                    // إضافة البيانات إلى Firebase
-                    await firestore.collection('parents').add({
+                    // ✅ الحصول على schoolId من SharedPreferences
+                    final SharedPreferences prefs =
+                        await SharedPreferences.getInstance();
+                    final String? _schoolId = prefs.getString('schoolId');
+
+                    if (_schoolId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            "لم يتم العثور على بيانات المدرسة. يرجى تسجيل الدخول مجددًا.",
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    // ✅ إضافة ولي الأمر مع استخدام schoolId من SharedPreferences
+                    await firestore.collection('parents').doc(parentId).set({
                       'id': parentId,
                       'name': parentName,
                       'phone': phone,
                       'email': email,
                       'password': password,
                       'role': 'parent',
-                      'schoolId': FirebaseAuth.instance.currentUser!.uid,
+                      'schoolId': _schoolId, // ✅ تم التحديث هنا
                       'createdAt': Timestamp.now(),
                     });
 
-                    // إرسال البريد الإلكتروني
                     await sendEmail(email, parentName, parentId, password);
 
-                    // إظهار رسالة نجاح
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
@@ -197,22 +194,20 @@ class AddParentsScreen extends StatelessWidget {
                   child: const Text(
                     'إضافة ولي الأمر',
                     style: TextStyle(
-                      color: Colors.white, // نص أبيض على الزر
+                      color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _buttonColor, // لون الخلفية الأخضر
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 15,
-                    ), // ارتفاع الزر
+                    backgroundColor: _buttonColor,
+                    padding: const EdgeInsets.symmetric(vertical: 15),
                     minimumSize: Size(
                       MediaQuery.of(context).size.width / 2,
                       50,
-                    ), // عرض الزر نصف الشاشة
+                    ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8), // حواف مستديرة
+                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 ),
@@ -224,30 +219,24 @@ class AddParentsScreen extends StatelessWidget {
     );
   }
 
-  // ✅ التحقق من تكرار بيانات ولي الأمر
   Future<bool> isParentDuplicate(String id, String email, String phone) async {
-    var querySnapshot =
-        await firestore.collection('parents').where('id', isEqualTo: id).get();
-    if (querySnapshot.docs.isNotEmpty) return true;
-
-    querySnapshot =
+    var querySnapshot = await firestore.collection('parents').doc(id).get();
+    if (querySnapshot.exists) return true;
+    var queryEmail =
         await firestore
             .collection('parents')
             .where('email', isEqualTo: email)
             .get();
-    if (querySnapshot.docs.isNotEmpty) return true;
-
-    querySnapshot =
+    if (queryEmail.docs.isNotEmpty) return true;
+    var queryPhone =
         await firestore
             .collection('parents')
             .where('phone', isEqualTo: phone)
             .get();
-    if (querySnapshot.docs.isNotEmpty) return true;
-
+    if (queryPhone.docs.isNotEmpty) return true;
     return false;
   }
 
-  // ✅ إرسال البريد الإلكتروني
   Future<void> sendEmail(
     String recipientEmail,
     String name,
@@ -261,12 +250,12 @@ class AddParentsScreen extends StatelessWidget {
           ..recipients.add(recipientEmail)
           ..subject = "تفاصيل حسابك كولي أمر"
           ..text =
-              "مرحبًا $name،\n\n"
-              "تم تسجيلك بنجاح في تطبيق متابع.\n\n"
+              "مرحبًا $name،\n"
+              "تم تسجيلك بنجاح في تطبيق متابع.\n"
               "بيانات تسجيل الدخول الخاصة بك:\n"
               "رقم ولي الأمر: $parentId\n"
-              "كلمة المرور: $password\n\n"
-              "يرجى تغيير كلمة المرور بعد تسجيل الدخول.\n\n"
+              "كلمة المرور: $password\n"
+              "يرجى تغيير كلمة المرور بعد تسجيل الدخول.\n"
               "تحياتنا، فريق متابع.";
 
     try {
@@ -277,7 +266,6 @@ class AddParentsScreen extends StatelessWidget {
     }
   }
 
-  // ✅ اختيار SMTP بناءً على نوع البريد
   SmtpServer getSmtpServer(String email, String password) {
     String domain = email.split('@').last.toLowerCase();
     switch (domain) {
@@ -333,7 +321,6 @@ class AddParentsScreen extends StatelessWidget {
     }
   }
 
-  // ✅ توليد كلمة مرور عشوائية
   String generateRandomPassword() {
     const String chars =
         'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -344,7 +331,6 @@ class AddParentsScreen extends StatelessWidget {
     ).join();
   }
 
-  // ✅ تصميم الحقول النصية
   Widget _buildTextField(
     TextEditingController controller,
     String label,
@@ -355,24 +341,18 @@ class AddParentsScreen extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(
-          color: Colors.black54,
-        ), // لون العنوان (أسود باهت)
+        labelStyle: const TextStyle(color: Colors.black54),
         border: OutlineInputBorder(),
-        prefixIcon: Icon(icon, color: _iconColor), // أيقونة باللون الأزرق
+        prefixIcon: Icon(icon, color: _iconColor),
         focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: _iconColor), // حدود عند التركيز
+          borderSide: BorderSide(color: _iconColor),
         ),
-        hintStyle: const TextStyle(
-          color: Colors.grey, // نص تلميح رمادي
-        ),
+        hintStyle: const TextStyle(color: Colors.grey),
         filled: true,
-        fillColor: _textFieldFillColor, // خلفية الحقل (رمادي فاتح)
+        fillColor: _textFieldFillColor,
       ),
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      style: TextStyle(
-        color: _textColor, // لون النص الأساسي داخل الحقل (أسود داكن)
-      ),
+      style: TextStyle(color: _textColor),
     );
   }
 }

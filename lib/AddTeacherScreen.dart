@@ -1,81 +1,94 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:mut6/widgets/custom_button_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mut6/widgets/custom_text_field.dart';
+import '../widgets/custom_button_auth.dart';
 
 class TeacherListScreen extends StatefulWidget {
+  const TeacherListScreen({super.key});
+
   @override
-  _ATeacherListScreen createState() => _ATeacherListScreen();
+  _TeacherListScreenState createState() => _TeacherListScreenState();
 }
 
-class _ATeacherListScreen extends State<TeacherListScreen> {
-  Map<String, bool> selectedAdmins = {}; // الإداريين المحددين
+class _TeacherListScreenState extends State<TeacherListScreen> {
+  Map<String, bool> selectedTeachers = {};
+  String? _schoolId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchoolId();
+  }
+
+  Future<void> _loadSchoolId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _schoolId = prefs.getString('schoolId');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_schoolId == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: Text("المعلمين", style: TextStyle(color: Colors.white)),
+        title: const Text("المعلمون", style: TextStyle(color: Colors.white)),
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream:
             FirebaseFirestore.instance
                 .collection('teachers')
-                .where(
-                  'schoolId',
-                  isEqualTo: FirebaseAuth.instance.currentUser!.uid,
-                )
+                .where('schoolId', isEqualTo: _schoolId)
                 .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(child: Text("لا يوجد معلمين"));
+            return const Center(child: Text("لا يوجد معلمون"));
           }
-
-          final admins = snapshot.data!.docs;
+          final teachers = snapshot.data!.docs;
           return Column(
             children: [
               Expanded(
                 child: ListView.builder(
-                  padding: EdgeInsets.all(20),
-                  itemCount: admins.length,
+                  padding: const EdgeInsets.all(20),
+                  itemCount: teachers.length,
                   itemBuilder: (context, index) {
-                    var admin = admins[index];
-                    var adminData = admin.data() as Map<String, dynamic>;
-                    String adminId = admin.id;
-
+                    var teacher = teachers[index];
+                    var teacherData = teacher.data() as Map<String, dynamic>;
+                    String teacherId = teacher.id;
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           Text(
-                            adminData['name'],
-                            style: TextStyle(fontSize: 18),
+                            teacherData['name'],
+                            style: const TextStyle(fontSize: 18),
                             textDirection: TextDirection.rtl,
                           ),
-                          SizedBox(width: 10),
+                          const SizedBox(width: 10),
                           Checkbox(
-                            value: selectedAdmins[adminId] ?? false,
+                            value: selectedTeachers[teacherId] ?? false,
                             onChanged: (bool? value) {
                               setState(() {
-                                if (selectedAdmins.containsKey(adminId) &&
+                                if (selectedTeachers.containsKey(teacherId) &&
                                     !value!) {
-                                  selectedAdmins.remove(adminId);
+                                  selectedTeachers.remove(teacherId);
                                 } else {
-                                  selectedAdmins[adminId] = value!;
+                                  selectedTeachers[teacherId] = value!;
                                 }
                               });
                             },
@@ -98,19 +111,15 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
                     Expanded(
                       child: CustomButtonAuth(
                         title: "حذف",
-                        onPressed: () {
-                          _showDeleteDialog();
-                        },
+                        onPressed: _showDeleteDialog,
                         color: const Color.fromRGBO(33, 150, 243, 1),
                       ),
                     ),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: CustomButtonAuth(
                         title: "تعديل",
-                        onPressed: () {
-                          _editSelectedAdmin();
-                        },
+                        onPressed: _editSelectedTeacher,
                         color: const Color.fromRGBO(33, 150, 243, 1),
                       ),
                     ),
@@ -124,65 +133,61 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
     );
   }
 
-  void _editSelectedAdmin() async {
+  void _editSelectedTeacher() async {
     List<String> selectedIds =
-        selectedAdmins.keys.where((id) => selectedAdmins[id] == true).toList();
-
+        selectedTeachers.keys
+            .where((id) => selectedTeachers[id] == true)
+            .toList();
     if (selectedIds.isEmpty || selectedIds.length > 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("يرجى اختيار معلم واحد فقط للتعديل")),
+        const SnackBar(content: Text("يرجى اختيار معلم واحد فقط للتعديل")),
       );
       return;
     }
-
     String selectedId = selectedIds.first;
-
     try {
       DocumentSnapshot doc =
           await FirebaseFirestore.instance
               .collection('teachers')
               .doc(selectedId)
               .get();
-
       if (doc.exists) {
-        Map<String, dynamic> adminData = doc.data() as Map<String, dynamic>;
-        _showEditDialog(context, selectedId, adminData);
+        Map<String, dynamic> teacherData = doc.data() as Map<String, dynamic>;
+        _showEditDialog(context, selectedId, teacherData);
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("حدث خطأ أثناء تحميل البيانات")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("حدث خطأ أثناء تحميل البيانات")),
+      );
     }
   }
 
-  Future<bool> _isPhoneAvailable(String phone, String currentAdminId) async {
+  Future<bool> _isPhoneAvailable(String phone, String currentTeacherId) async {
     try {
       final querySnapshot =
           await FirebaseFirestore.instance
               .collection('teachers')
               .where('phone', isEqualTo: phone)
               .get();
-
       return querySnapshot.docs.isEmpty ||
           (querySnapshot.docs.length == 1 &&
-              querySnapshot.docs.first.id == currentAdminId);
+              querySnapshot.docs.first.id == currentTeacherId);
     } catch (e) {
       print("❌ خطأ أثناء التحقق من رقم الهاتف: $e");
       return false;
     }
   }
 
-  Future<bool> _isEmailAvailable(String email, String currentAdminId) async {
+  Future<bool> _isEmailAvailable(String email, String currentTeacherId) async {
     try {
       final querySnapshot =
           await FirebaseFirestore.instance
               .collection('teachers')
               .where('email', isEqualTo: email)
               .get();
-
       return querySnapshot.docs.isEmpty ||
           (querySnapshot.docs.length == 1 &&
-              querySnapshot.docs.first.id == currentAdminId);
+              querySnapshot.docs.first.id == currentTeacherId);
     } catch (e) {
       print("❌ خطأ أثناء التحقق من البريد الإلكتروني: $e");
       return false;
@@ -191,27 +196,27 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
 
   void _showEditDialog(
     BuildContext context,
-    String adminId,
-    Map<String, dynamic> adminData,
+    String teacherId,
+    Map<String, dynamic> teacherData,
   ) {
     TextEditingController nameController = TextEditingController(
-      text: adminData['name'],
+      text: teacherData['name'],
     );
     TextEditingController idController = TextEditingController(
-      text: adminData['id'],
+      text: teacherData['id'],
     );
     TextEditingController phoneController = TextEditingController(
-      text: adminData['phone'],
+      text: teacherData['phone'],
     );
     TextEditingController emailController = TextEditingController(
-      text: adminData['email'],
-    ); // خانة البريد الإلكتروني
+      text: teacherData['email'],
+    );
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Center(
+          title: const Center(
             child: Text(
               "تعديل بيانات المعلم",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -231,7 +236,7 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
                 icon: Icons.badge,
                 hintText: "رقم المعلم",
                 iconColor: Colors.blue,
-                enabled: false, // جعل الحقل غير قابل للتعديل
+                enabled: false,
               ),
               CustomTextField(
                 controller: phoneController,
@@ -244,7 +249,7 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
                 icon: Icons.email,
                 hintText: "البريد الإلكتروني",
                 iconColor: Colors.blue,
-              ), // خانة البريد الإلكتروني
+              ),
             ],
           ),
           actions: [
@@ -258,7 +263,7 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
                     color: const Color.fromRGBO(33, 150, 243, 1),
                   ),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
                   child: CustomButtonAuth(
                     title: "حفظ",
@@ -267,20 +272,16 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
                       String phone = phoneController.text.trim();
                       String email = emailController.text.trim();
 
-                      // التحقق من أن جميع الحقول مملوءة
                       if (name.isEmpty || phone.isEmpty || email.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("جميع الحقول مطلوبة لإكمال العملية"),
-                          ),
+                          const SnackBar(content: Text("جميع الحقول مطلوبة")),
                         );
                         return;
                       }
 
-                      // التحقق من صيغة رقم الهاتف
                       if (!phone.startsWith('05') || phone.length != 10) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                             content: Text(
                               "رقم الهاتف يجب أن يبدأ بـ '05' ويتكون من 10 أرقام",
                             ),
@@ -289,63 +290,56 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
                         return;
                       }
 
-                      // التحقق من صيغة البريد الإلكتروني
                       final emailRegex = RegExp(
                         r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                       );
                       if (!emailRegex.hasMatch(email)) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                             content: Text("صيغة البريد الإلكتروني غير صحيحة"),
                           ),
                         );
                         return;
                       }
 
-                      // التحقق من أن رقم الهاتف غير مستخدم مسبقًا
                       bool isPhoneAvailable = await _isPhoneAvailable(
-                        phoneController.text.trim(),
-                        adminId,
+                        phone,
+                        teacherId,
                       );
                       if (!isPhoneAvailable) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text("رقم الهاتف هذا مستخدم مسبقًا"),
+                          const SnackBar(
+                            content: Text("رقم الهاتف مستخدم مسبقًا"),
                           ),
                         );
                         return;
                       }
 
-                      // التحقق من أن البريد الإلكتروني غير مستخدم مسبقًا
                       bool isEmailAvailable = await _isEmailAvailable(
-                        emailController.text.trim(),
-                        adminId,
+                        email,
+                        teacherId,
                       );
                       if (!isEmailAvailable) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              "البريد الإلكتروني هذا مستخدم مسبقًا",
-                            ),
+                          const SnackBar(
+                            content: Text("البريد الإلكتروني مستخدم مسبقًا"),
                           ),
                         );
                         return;
                       }
 
-                      // تحديث البيانات في Firestore
                       await FirebaseFirestore.instance
                           .collection('teachers')
-                          .doc(adminId)
+                          .doc(teacherId)
                           .update({
-                            'name': nameController.text.trim(),
-                            'phone': phoneController.text.trim(),
-                            'email': emailController.text.trim(),
+                            'name': name,
+                            'phone': phone,
+                            'email': email,
                           });
 
                       Navigator.pop(context);
-
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("تم تعديل البيانات بنجاح")),
+                        const SnackBar(content: Text("تم التعديل بنجاح")),
                       );
                     },
                     color: const Color.fromRGBO(33, 150, 243, 1),
@@ -361,22 +355,22 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
 
   void _showDeleteDialog() {
     List<String> selectedIds =
-        selectedAdmins.keys.where((id) => selectedAdmins[id] == true).toList();
-
+        selectedTeachers.keys
+            .where((id) => selectedTeachers[id] == true)
+            .toList();
     if (selectedIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("يرجى اختيار معلم واحد على الأقل للحذف")),
+        const SnackBar(content: Text("يرجى اختيار معلم واحد على الأقل للحذف")),
       );
       return;
     }
-
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Center(
+          title: const Center(
             child: Text(
-              "تأكيد العملية",
+              "تأكيد الحذف",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ),
@@ -391,7 +385,7 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
                     color: const Color.fromRGBO(33, 150, 243, 1),
                   ),
                 ),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
                   child: CustomButtonAuth(
                     title: "حذف",
@@ -402,15 +396,12 @@ class _ATeacherListScreen extends State<TeacherListScreen> {
                             .doc(id)
                             .delete();
                       }
-
                       setState(() {
-                        selectedAdmins.clear();
+                        selectedTeachers.clear();
                       });
-
                       Navigator.pop(context);
-
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("تم حذف الإداريين بنجاح")),
+                        const SnackBar(content: Text("تم الحذف بنجاح")),
                       );
                     },
                     color: const Color.fromRGBO(33, 150, 243, 1),

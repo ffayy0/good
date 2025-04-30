@@ -16,12 +16,33 @@ class _LoginSchoolScreenState extends State<LoginSchoolScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("الرجاء إدخال البريد الإلكتروني وكلمة المرور"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('يرجى إدخال كلمة المرور'),
+          backgroundColor: Colors.grey[800],
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        ),
+      );
+      return;
+    }
     try {
       final UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _passwordController.text.trim(),
-          );
+          .signInWithEmailAndPassword(email: email, password: password);
 
       // عرض رسالة نجاح تسجيل الدخول باستخدام SnackBar
       ScaffoldMessenger.of(context).showSnackBar(
@@ -48,45 +69,27 @@ class _LoginSchoolScreenState extends State<LoginSchoolScreen> {
         errorMessage = "كلمة المرور غير صحيحه";
       } else if (e.code == 'invalid-email') {
         errorMessage = 'البريد الالكتروني غير صحيح.';
+      } else if (e.code == 'user-disabled') {
+        errorMessage = "تم تعطيل الحساب.";
+      } else if (e.code == 'too-many-requests') {
+        errorMessage = "محاولات تسجيل كثيرة، حاول لاحقاً.";
       } else {
-        errorMessage = "حدث خطأ";
+        if (e.message != null &&
+            e.message!.contains("The supplied auth credential is incorrect")) {
+          errorMessage = "كلمة المرور غير صحيحة.";
+        } else {
+          errorMessage = "حدث خطأ غير متوقع. تأكد من البيانات وحاول مرة أخرى.";
+        }
       }
 
       // عرض رسالة الخطأ باستخدام SnackBar
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text(
-                'خطأ',
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              content: Text(
-                errorMessage,
-                style: const TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              actionsAlignment: MainAxisAlignment.center,
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text(
-                    'حسنًا',
-                    style: TextStyle(color: Colors.blue, fontSize: 16),
-                  ),
-                ),
-              ],
-            ),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.grey[800],
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        ),
       );
     }
   }
