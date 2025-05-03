@@ -81,7 +81,7 @@ class SchoolScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 35),
                   CustomButtonAuth(
-                    title: "وقت الحضور الصباحي",
+                    title: "وقت تسجيل الحضور",
                     onPressed: () {
                       Navigator.pushNamed(context, '/SchoolDashboardScreen');
                     },

@@ -14,6 +14,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:typed_data';
 import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CustomDrawer extends StatefulWidget {
   const CustomDrawer({super.key});
@@ -26,11 +27,11 @@ class _CustomDrawerState extends State<CustomDrawer> {
   final bool _isLoading = false;
 
   Future<void> generateAndSaveBarcodes() async {
-    // ... (كود توليد الباركود كما هو)
+    // ... (كود توليد الباركود إذا كنت تستخدمه)
   }
 
   Future<void> sendBarcodeByEmail(String studentName, String barcodeUrl) async {
-    // ... (كود إرسال البريد كما هو)
+    // ... (كود إرسال البريد إذا كنت تستخدمه)
   }
 
   @override
@@ -42,7 +43,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           const SizedBox(height: 40),
           drawerItem(
             title: "إضافة أولياء الأمور",
-            iconText: "+", // رمز نصي
+            iconText: "+",
             onTap: () {
               Navigator.push(
                 context,
@@ -52,7 +53,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           ),
           drawerItem(
             title: "إضافة طلاب",
-            iconText: "+", // رمز نصي
+            iconText: "+",
             onTap: () {
               Navigator.push(
                 context,
@@ -64,7 +65,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           ),
           drawerItem(
             title: "إضافة معلمين",
-            iconText: "+", // رمز نصي
+            iconText: "+",
             onTap: () {
               Navigator.push(
                 context,
@@ -74,18 +75,17 @@ class _CustomDrawerState extends State<CustomDrawer> {
           ),
           drawerItem(
             title: "معلمين",
-            icon: Icons.person, // أيقونة جديدة تعبر عن المعلمين
+            icon: Icons.person,
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => TeacherListScreen()),
+                MaterialPageRoute(builder: (context) => TeachersListScreen()),
               );
             },
           ),
-
           drawerItem(
             title: "مسح الباركود",
-            icon: Icons.qr_code_scanner, // أيقونة من نوع IconData
+            icon: Icons.qr_code_scanner,
             onTap: () {
               Navigator.push(
                 context,
@@ -97,7 +97,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           ),
           drawerItem(
             title: "استعلام عن بيانات طالب",
-            icon: Icons.search, // أيقونة من نوع IconData
+            icon: Icons.search,
             onTap: () {
               Navigator.push(
                 context,
@@ -108,7 +108,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
           const Spacer(),
           drawerItem(
             title: "تسجيل خروج",
-            icon: Icons.logout, // أيقونة من نوع IconData
+            icon: Icons.logout,
             onTap: () => _logout(context),
           ),
           const SizedBox(height: 20),
@@ -117,11 +117,10 @@ class _CustomDrawerState extends State<CustomDrawer> {
     );
   }
 
-  // ✅ الدالة المعدلة لدعم String و IconData
   Widget drawerItem({
     required String title,
-    IconData? icon, // أيقونة اختيارية
-    String? iconText, // رمز نصي اختياري
+    IconData? icon,
+    String? iconText,
     required VoidCallback onTap,
   }) {
     return Padding(
@@ -131,14 +130,10 @@ class _CustomDrawerState extends State<CustomDrawer> {
         child: Row(
           children: [
             if (icon != null)
-              Icon(
-                icon, // عرض الأيقونة إذا تم تمرير IconData
-                color: Colors.blue,
-                size: 24,
-              )
+              Icon(icon, color: Colors.blue, size: 24)
             else if (iconText != null)
               Text(
-                iconText, // عرض النص إذا تم تمرير String
+                iconText,
                 style: const TextStyle(fontSize: 24, color: Colors.blue),
               ),
             const SizedBox(width: 10),
@@ -157,19 +152,49 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   void _logout(BuildContext context) async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('تأكيد تسجيل الخروج'),
+            content: const Text('هل أنت متأكد أنك تريد تسجيل الخروج؟'),
+            actions: [
+              TextButton(
+                child: const Text('إلغاء'),
+                onPressed: () => Navigator.of(context).pop(false),
+              ),
+              TextButton(
+                child: const Text('تسجيل خروج'),
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
+            ],
+          ),
+    );
+
+    if (shouldLogout != true) return;
+
     try {
+      // حذف schoolId من SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('schoolId');
+
       // تسجيل الخروج من Firebase
       await FirebaseAuth.instance.signOut();
 
-      // التنقل إلى صفحة HomeScreen وإزالة جميع الصفحات السابقة من المكدس
+      // عرض رسالة
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تسجيل الخروج بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // الانتقال إلى الصفحة الرئيسية
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
-        ), // تحديث الصفحة هنا
-        (Route<dynamic> route) => false, // إزالة جميع الصفحات السابقة
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+        (Route<dynamic> route) => false,
       );
     } catch (e) {
-      // عرض رسالة خطأ في حال فشل تسجيل الخروج
       print("❌ خطأ في تسجيل الخروج: $e");
       ScaffoldMessenger.of(
         context,

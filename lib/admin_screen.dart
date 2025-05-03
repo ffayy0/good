@@ -1,19 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mut6/AdminAttendanceViewer.dart';
 import 'package:mut6/Permission_screen.dart';
 import 'package:mut6/admin_previous_requests_screen.dart';
 import 'package:mut6/exit_request_details_screen.dart';
-
-import '../widgets/custom_button.dart'; // استيراد الزر الصحيح
+import '../widgets/custom_button.dart';
 import '../widgets/custom_drawer.dart';
-import 'attend_class_screen.dart' hide CustomButton;
 
 class AdminScreen extends StatelessWidget {
+  const AdminScreen({super.key});
+
+  Future<void> _openAttendanceViewer(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final schoolId = prefs.getString('schoolId') ?? '';
+
+    if (schoolId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("لا يمكن تحديد معرف المدرسة")),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ClassAttendanceWithDate(schoolId: schoolId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        automaticallyImplyLeading: false, // إزالة زر الرجوع
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.green,
         elevation: 0,
         centerTitle: true,
@@ -74,12 +95,7 @@ class AdminScreen extends StatelessWidget {
               const SizedBox(height: 35),
               CustomButton(
                 title: "حضور الطلاب",
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => ClassScreen()),
-                  );
-                },
+                onPressed: () => _openAttendanceViewer(context),
               ),
 
               const SizedBox(height: 35),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:mut6/widgets/custom_button_auth.dart';
-import 'package:mut6/widgets/custom_text_field.dart';
+import 'package:mut6/widgets/custom_text_field.dart' show CustomTextField;
 
 class AdminListScreen extends StatefulWidget {
   const AdminListScreen({super.key});
@@ -12,7 +12,7 @@ class AdminListScreen extends StatefulWidget {
 }
 
 class _AdminListScreenState extends State<AdminListScreen> {
-  Map<String, bool> selectedAdmins = {}; // الإداريين المحددين
+  Map<String, bool> selectedAdmins = {};
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +43,12 @@ class _AdminListScreenState extends State<AdminListScreen> {
             return Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(child: Text("لا يوجد إداريين"));
+            return Center(
+              child: Text(
+                "لا يوجد إداريين",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            );
           }
 
           final admins = snapshot.data!.docs;
@@ -73,11 +78,10 @@ class _AdminListScreenState extends State<AdminListScreen> {
                             value: selectedAdmins[adminId] ?? false,
                             onChanged: (bool? value) {
                               setState(() {
-                                if (selectedAdmins.containsKey(adminId) &&
-                                    !value!) {
+                                if (!value!) {
                                   selectedAdmins.remove(adminId);
                                 } else {
-                                  selectedAdmins[adminId] = value!;
+                                  selectedAdmins[adminId] = true;
                                 }
                               });
                             },
@@ -100,9 +104,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                     Expanded(
                       child: CustomButtonAuth(
                         title: "حذف",
-                        onPressed: () {
-                          _showDeleteDialog();
-                        },
+                        onPressed: _showDeleteDialog,
                         color: const Color.fromRGBO(33, 150, 243, 1),
                       ),
                     ),
@@ -110,9 +112,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                     Expanded(
                       child: CustomButtonAuth(
                         title: "تعديل",
-                        onPressed: () {
-                          _editSelectedAdmin();
-                        },
+                        onPressed: _editSelectedAdmin,
                         color: const Color.fromRGBO(33, 150, 243, 1),
                       ),
                     ),
@@ -207,7 +207,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
     );
     TextEditingController emailController = TextEditingController(
       text: adminData['email'],
-    ); // خانة البريد الإلكتروني
+    );
 
     showDialog(
       context: context,
@@ -231,9 +231,9 @@ class _AdminListScreenState extends State<AdminListScreen> {
               CustomTextField(
                 controller: idController,
                 icon: Icons.badge,
-                hintText: "رقم الإداري",
+                hintText: "رقم الهوية للاداري",
                 iconColor: Colors.blue,
-                enabled: false, // جعل الحقل غير قابل للتعديل
+                enabled: false,
               ),
               CustomTextField(
                 controller: phoneController,
@@ -246,7 +246,7 @@ class _AdminListScreenState extends State<AdminListScreen> {
                 icon: Icons.email,
                 hintText: "البريد الإلكتروني",
                 iconColor: Colors.blue,
-              ), // خانة البريد الإلكتروني
+              ),
             ],
           ),
           actions: [
@@ -269,7 +269,6 @@ class _AdminListScreenState extends State<AdminListScreen> {
                       String phone = phoneController.text.trim();
                       String email = emailController.text.trim();
 
-                      // التحقق من أن جميع الحقول مملوءة
                       if (name.isEmpty || phone.isEmpty || email.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -279,7 +278,6 @@ class _AdminListScreenState extends State<AdminListScreen> {
                         return;
                       }
 
-                      // التحقق من صيغة رقم الهاتف
                       if (!phone.startsWith('05') || phone.length != 10) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -291,7 +289,6 @@ class _AdminListScreenState extends State<AdminListScreen> {
                         return;
                       }
 
-                      // التحقق من صيغة البريد الإلكتروني
                       final emailRegex = RegExp(
                         r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
                       );
@@ -304,9 +301,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                         return;
                       }
 
-                      // التحقق من أن رقم الهاتف غير مستخدم مسبقًا
                       bool isPhoneAvailable = await _isPhoneAvailable(
-                        phoneController.text.trim(),
+                        phone,
                         adminId,
                       );
                       if (!isPhoneAvailable) {
@@ -318,9 +314,8 @@ class _AdminListScreenState extends State<AdminListScreen> {
                         return;
                       }
 
-                      // التحقق من أن البريد الإلكتروني غير مستخدم مسبقًا
                       bool isEmailAvailable = await _isEmailAvailable(
-                        emailController.text.trim(),
+                        email,
                         adminId,
                       );
                       if (!isEmailAvailable) {
@@ -334,18 +329,16 @@ class _AdminListScreenState extends State<AdminListScreen> {
                         return;
                       }
 
-                      // تحديث البيانات في Firestore
                       await FirebaseFirestore.instance
                           .collection('admins')
                           .doc(adminId)
                           .update({
-                            'name': nameController.text.trim(),
-                            'phone': phoneController.text.trim(),
-                            'email': emailController.text.trim(),
+                            'name': name,
+                            'phone': phone,
+                            'email': email,
                           });
 
                       Navigator.pop(context);
-
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text("تم تعديل البيانات بنجاح")),
                       );
@@ -410,7 +403,6 @@ class _AdminListScreenState extends State<AdminListScreen> {
                       });
 
                       Navigator.pop(context);
-
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text("تم حذف الإداريين بنجاح")),
                       );

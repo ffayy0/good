@@ -22,12 +22,7 @@ class _LoginParentScreenState extends State<LoginParentScreen> {
       String password = _passwordController.text.trim();
 
       if (id.isEmpty || password.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("الرجاء إدخال جميع الحقول"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showMessage("الرجاء إدخال جميع الحقول", Colors.red);
         return;
       }
 
@@ -58,20 +53,10 @@ class _LoginParentScreenState extends State<LoginParentScreen> {
           isAuthorization: true,
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("الحساب غير موجود"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showMessage("الحساب غير موجود", Colors.red);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("حدث خطأ أثناء تسجيل الدخول: $e"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showMessage("حدث خطأ أثناء تسجيل الدخول: $e", Colors.red);
     }
   }
 
@@ -84,46 +69,31 @@ class _LoginParentScreenState extends State<LoginParentScreen> {
     String storedPassword = userData['password'];
 
     if (storedPassword != password) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("كلمة المرور غير صحيحة"),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showMessage("كلمة المرور غير صحيحة", Colors.red);
       return;
     }
 
     String schoolId = userData['schoolId'] ?? '';
     await _saveSchoolIdLocally(schoolId);
 
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("تم تسجيل الدخول بنجاح!"),
-        backgroundColor: Colors.green,
-      ),
-    );
+    _showMessage("تم تسجيل الدخول بنجاح!", Colors.green);
 
     if (isAuthorization) {
-      // ✅ تسجيل دخول كـ وكيل
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder:
               (context) => AgentScreen(
-                agentId: userDoc.id, // معرف الوكيل الحقيقي
-                guardianId: userData['guardianId'], // معرف ولي الأمر المرتبط به
+                agentId: userDoc.id,
+                guardianId: userData['guardianId'],
               ),
         ),
       );
     } else {
-      // ✅ تسجيل دخول كـ ولي أمر
-      String guardianId = userData['id'];
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => GuardianScreen(guardianId: guardianId),
+          builder: (context) => GuardianScreen(guardianId: userData['id']),
         ),
       );
     }
@@ -133,6 +103,12 @@ class _LoginParentScreenState extends State<LoginParentScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('schoolId', schoolId);
     print('✅ تم حفظ معرف المدرسة: $schoolId');
+  }
+
+  void _showMessage(String text, Color color) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(text), backgroundColor: color));
   }
 
   @override

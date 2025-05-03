@@ -6,17 +6,37 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 import 'package:mut6/widgets/custom_button_auth.dart' show CustomButtonAuth;
 import 'widgets/custom_text_field.dart' show CustomTextField;
+import 'package:shared_preferences/shared_preferences.dart';
 
-class AddTeacherScreen extends StatelessWidget {
+class AddTeacherScreen extends StatefulWidget {
+  @override
+  State<AddTeacherScreen> createState() => _AddTeacherScreenState();
+}
+
+class _AddTeacherScreenState extends State<AddTeacherScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController idController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController specialtyController = TextEditingController();
-
   final Color _iconColor = const Color(0xFF007AFF);
   final String senderEmail = "8ffaay01@gmail.com";
-  final String senderPassword = "urwn frcb fzug ucyz"; // App Password
+  final String senderPassword = "urwn frcb fzug ucyz";
+
+  String? _schoolId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchoolId();
+  }
+
+  Future<void> _loadSchoolId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _schoolId = prefs.getString('schoolId');
+    });
+  }
 
   Future<String?> checkTeacherDuplicates(
     String id,
@@ -51,6 +71,14 @@ class AddTeacherScreen extends StatelessWidget {
     String phone = phoneController.text.trim();
     String email = emailController.text.trim();
     String specialty = specialtyController.text.trim();
+
+    if (_schoolId == null) {
+      showSnackBar(
+        context,
+        "تعذر إضافة المعلم: لم يتم العثور على معرف المدرسة",
+      );
+      return;
+    }
 
     if ([name, id, phone, email, specialty].any((e) => e.isEmpty)) {
       showSnackBar(context, "يجب ملء جميع الحقول قبل الإضافة");
@@ -89,6 +117,21 @@ class AddTeacherScreen extends StatelessWidget {
       return;
     }
 
+    // التحقق من وجود أي نوع من الأرقام (إنجليزية أو عربية)
+    if (specialty.contains(RegExp(r'[0-9\u0660-\u0669]'))) {
+      showSnackBar(context, 'التخصص لا يجب أن يحتوي على أرقام');
+      return;
+    }
+
+    // التحقق من أن التخصص يحتوي على أحرف فقط (بدون رموز أو أرقام)
+    if (!RegExp(r'^[a-zA-Z\u0600-\u06FF]+$').hasMatch(specialty)) {
+      showSnackBar(
+        context,
+        'التخصص يجب أن يحتوي على أحرف فقط بدون أرقام أو رموز',
+      );
+      return;
+    }
+
     String? duplicateMessage = await checkTeacherDuplicates(id, email, phone);
     if (duplicateMessage != null) {
       showSnackBar(context, "⚠️ $duplicateMessage");
@@ -104,7 +147,7 @@ class AddTeacherScreen extends StatelessWidget {
         'email': email,
         'specialty': specialty,
         'password': password,
-        'schoolId': FirebaseAuth.instance.currentUser!.uid,
+        'schoolId': _schoolId, // ✅ تم التعديل هنا
         'createdAt': Timestamp.now(),
       });
 
@@ -180,8 +223,6 @@ class AddTeacherScreen extends StatelessWidget {
           port: 587,
           username: email,
           password: password,
-          ssl: false,
-          allowInsecure: true,
         );
       case 'yahoo.com':
         return SmtpServer(
@@ -189,8 +230,6 @@ class AddTeacherScreen extends StatelessWidget {
           port: 587,
           username: email,
           password: password,
-          ssl: false,
-          allowInsecure: true,
         );
       case 'icloud.com':
         return SmtpServer(
@@ -198,8 +237,6 @@ class AddTeacherScreen extends StatelessWidget {
           port: 587,
           username: email,
           password: password,
-          ssl: false,
-          allowInsecure: true,
         );
       case 'zoho.com':
         return SmtpServer(
@@ -208,7 +245,6 @@ class AddTeacherScreen extends StatelessWidget {
           username: email,
           password: password,
           ssl: true,
-          allowInsecure: false,
         );
       default:
         return SmtpServer(
@@ -216,8 +252,6 @@ class AddTeacherScreen extends StatelessWidget {
           port: 587,
           username: email,
           password: password,
-          ssl: false,
-          allowInsecure: true,
         );
     }
   }
@@ -240,6 +274,10 @@ class AddTeacherScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_schoolId == null) {
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(

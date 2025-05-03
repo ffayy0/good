@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mut6/providers/TeacherProvider.dart';
+
 import 'package:mut6/teacher_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -82,6 +83,8 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
                       selectedDuration = Duration(minutes: 10);
                     });
                   },
+                  activeColor:
+                      Colors.blue, // تغيير لون المربع إلى الأزرق عند اختياره
                 ),
                 Text("10 دقائق"),
                 SizedBox(width: 20),
@@ -93,6 +96,8 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
                       isTenMinutesSelected = false;
                     });
                   },
+                  activeColor:
+                      Colors.blue, // تغيير لون المربع إلى الأزرق عند اختياره
                 ),
                 GestureDetector(
                   onTap:
@@ -157,7 +162,7 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
                           (context) =>
                               StudyStageScreen(exitDuration: selectedDuration),
                     ),
-                    (route) => false, // إزالة جميع الصفحات السابقة من المكدس
+                    (route) => false,
                   );
                 } catch (e) {
                   print("حدث خطأ: $e");

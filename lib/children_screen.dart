@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mut6/helpsc.dart';
 import 'request_permission_screen.dart'; // صفحة طلب الاستئذان
 import 'attendence_screen.dart'; // صفحة عرض سجل الحضور
 import 'call_screen.dart'; // صفحة طلب النداء
@@ -72,9 +73,11 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
           context,
           MaterialPageRoute(
             builder:
-                (context) => AttendanceScreen(
+                (context) => GuardianAttendanceScreen(
                   studentId: selectedStudent["id"],
                   guardianId: widget.guardianId,
+                  studentName: '',
+                  childName: '',
                 ),
           ),
         );
@@ -102,6 +105,7 @@ class _ChildrenScreenState extends State<ChildrenScreen> {
                 (context) => RequestHelpScreen(
                   studentId: selectedStudent["id"],
                   studentName: selectedStudent["name"],
+                  schoolId: selectedStudent["schoolId"], // ✅ تمرير schoolId
                   // ملاحظة: إذا حبيت تمرر schoolId هنا أيضًا، خبرني أعدله لك
                 ),
           ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart'; // لإظهار التاريخ بشكل مرتب
+import 'package:intl/intl.dart';
+import 'package:mut6/students_execuses.dart'; // افترض أن هذا هو المسار الصحيح
 
 class AttendenceNames extends StatelessWidget {
   final String stage;
@@ -39,11 +40,9 @@ class AttendenceNames extends StatelessWidget {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   }
-
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                     return Center(child: Text("لا يوجد طلاب في هذا الفصل"));
                   }
-
                   return ListView.builder(
                     itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
@@ -52,124 +51,139 @@ class AttendenceNames extends StatelessWidget {
                               as Map<String, dynamic>;
                       final name = student['name'];
                       final studentId = student['id'];
-
-                      return StreamBuilder<DocumentSnapshot>(
+                      final className =
+                          student['schoolClass'] ??
+                          "غير محدد"; // استخراج اسم الصف
+                      return StreamBuilder<QuerySnapshot>(
                         stream:
                             FirebaseFirestore.instance
                                 .collection('attendance')
-                                .doc(studentId)
+                                .where('studentId', isEqualTo: studentId)
+                                .orderBy('timestamp', descending: true)
                                 .snapshots(),
                         builder: (context, attendanceSnapshot) {
-                          String status = "غير معروف";
-                          String stage = "";
-                          String schoolClass = "";
-                          String formattedTime = "غير محدد";
-
-                          if (attendanceSnapshot.hasData &&
-                              attendanceSnapshot.data!.exists) {
-                            final data =
-                                attendanceSnapshot.data!.data()
-                                    as Map<String, dynamic>;
-                            status = data['status'] ?? "غير معروف";
-                            stage = data['stage'] ?? "";
-                            schoolClass = data['schoolClass'] ?? "";
-                            final timestamp = data['timestamp'] as Timestamp?;
-                            if (timestamp != null) {
-                              final dateTime = timestamp.toDate();
-                              formattedTime = DateFormat(
-                                'yyyy-MM-dd HH:mm',
-                              ).format(dateTime);
-                            }
+                          if (!attendanceSnapshot.hasData ||
+                              attendanceSnapshot.data!.docs.isEmpty) {
+                            return const SizedBox();
                           }
-
-                          Color statusColor;
-                          switch (status) {
-                            case 'حضور':
-                              statusColor = Colors.green;
-                              break;
-                            case 'غياب':
-                              statusColor = Colors.red;
-                              break;
-                            case 'تأخير':
-                              statusColor = Colors.orange;
-                              break;
-                            default:
-                              statusColor = Colors.grey;
-                          }
-
-                          return Card(
-                            margin: EdgeInsets.symmetric(vertical: 8),
-                            child: ListTile(
-                              contentPadding: EdgeInsets.all(12),
-                              title: Text(
-                                name,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                                textAlign: TextAlign.right,
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text("المرحلة: $stage"),
-                                  Text("الصف: $schoolClass"),
-                                  Text("وقت التسجيل: $formattedTime"),
-                                ],
-                              ),
-                              trailing: Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: statusColor,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              onTap: () async {
-                                final newStatus = await showDialog<String>(
-                                  context: context,
-                                  builder:
-                                      (context) => SimpleDialog(
-                                        title: Text("اختر الحالة الجديدة"),
+                          return Column(
+                            children:
+                                attendanceSnapshot.data!.docs.map((doc) {
+                                  final data =
+                                      doc.data() as Map<String, dynamic>;
+                                  final status = data['status'] ?? "غير معروف";
+                                  final timestamp =
+                                      data['timestamp'] as Timestamp?;
+                                  final formattedTime =
+                                      timestamp != null
+                                          ? DateFormat(
+                                            'yyyy-MM-dd HH:mm',
+                                          ).format(timestamp.toDate())
+                                          : "غير محدد";
+                                  Color statusColor;
+                                  switch (status) {
+                                    case 'حضور':
+                                      statusColor = Colors.green;
+                                      break;
+                                    case 'غياب':
+                                      statusColor = Colors.red;
+                                      break;
+                                    case 'تأخير':
+                                      statusColor = Colors.orange;
+                                      break;
+                                    default:
+                                      statusColor = Colors.grey;
+                                  }
+                                  return Card(
+                                    margin: EdgeInsets.symmetric(vertical: 8),
+                                    child: ListTile(
+                                      contentPadding: EdgeInsets.all(12),
+                                      title: Text(
+                                        name,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.right,
+                                      ),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
                                         children: [
-                                          SimpleDialogOption(
-                                            child: Text("حضور"),
-                                            onPressed:
-                                                () => Navigator.pop(
-                                                  context,
-                                                  "حضور",
-                                                ),
-                                          ),
-                                          SimpleDialogOption(
-                                            child: Text("غياب"),
-                                            onPressed:
-                                                () => Navigator.pop(
-                                                  context,
-                                                  "غياب",
-                                                ),
-                                          ),
-                                          SimpleDialogOption(
-                                            child: Text("تأخير"),
-                                            onPressed:
-                                                () => Navigator.pop(
-                                                  context,
-                                                  "تأخير",
-                                                ),
-                                          ),
+                                          Text("المرحلة: $stage"),
+                                          Text(
+                                            "الصف: $className",
+                                          ), // عرض اسم الصف هنا
+                                          Text("وقت التسجيل: $formattedTime"),
                                         ],
                                       ),
-                                );
+                                      trailing: GestureDetector(
+                                        onTap: () async {
+                                          // جلب بيانات الإعذار من Firestore
+                                          final excuseSnapshot =
+                                              await FirebaseFirestore.instance
+                                                  .collection('student_excuses')
+                                                  .where(
+                                                    'studentId',
+                                                    isEqualTo: studentId,
+                                                  )
+                                                  .where(
+                                                    'date',
+                                                    isEqualTo: DateFormat(
+                                                      'yyyy-MM-dd',
+                                                    ).format(DateTime.now()),
+                                                  )
+                                                  .get();
 
-                                if (newStatus != null) {
-                                  await FirebaseFirestore.instance
-                                      .collection('attendance')
-                                      .doc(studentId)
-                                      .set({
-                                        'status': newStatus,
-                                      }, SetOptions(merge: true));
-                                }
-                              },
-                            ),
+                                          if (excuseSnapshot.docs.isNotEmpty) {
+                                            final excuseData =
+                                                excuseSnapshot.docs.first
+                                                    .data();
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder:
+                                                    (
+                                                      context,
+                                                    ) => ExcuseDetailsScreen(
+                                                      studentName:
+                                                          name, // اسم الطالب
+                                                      reason:
+                                                          excuseData['reason'], // السبب
+                                                      date:
+                                                          excuseData['date'], // التاريخ
+                                                      fileUrl:
+                                                          excuseData['fileUrl'] ??
+                                                          "", // رابط الملف
+                                                      className:
+                                                          className, // اسم الصف
+                                                    ),
+                                              ),
+                                            );
+                                          } else {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  "لا يوجد عذر لهذا الطالب",
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        child: Container(
+                                          width: 12,
+                                          height: 12,
+                                          decoration: BoxDecoration(
+                                            color: statusColor,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
                           );
                         },
                       );

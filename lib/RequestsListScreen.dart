@@ -1,12 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'lib/global_data.dart';
+class CallScreen extends StatefulWidget {
+  const CallScreen({super.key});
 
-class CallScreen extends StatelessWidget {
+  @override
+  State<CallScreen> createState() => _CallScreenState();
+}
+
+class _CallScreenState extends State<CallScreen> {
+  String? schoolId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchoolId();
+  }
+
+  Future<void> _loadSchoolId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final storedId = prefs.getString('schoolId');
+    print("✅ Loaded schoolId from SharedPreferences: $storedId");
+
+    setState(() {
+      schoolId = storedId;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (schoolId == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('شاشة النداء'),
@@ -21,10 +49,7 @@ class CallScreen extends StatelessWidget {
         stream:
             FirebaseFirestore.instance
                 .collection('pikup_call')
-                .where(
-                  'schoolId',
-                  isEqualTo: currentUserSchoolId,
-                ) // 🔥 فلترة بالـ schoolId
+                .where('schoolId', isEqualTo: schoolId)
                 .orderBy('timestamp', descending: true)
                 .snapshots(),
         builder: (context, snapshot) {
@@ -47,10 +72,10 @@ class CallScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final request = requests[index];
               final data = request.data() as Map<String, dynamic>;
-              final studentName = data['studentName'];
-              final studentId = data['studentId'];
+              final studentName = data['studentName'] ?? 'غير معروف';
+              final studentId = data['studentId'] ?? '';
               final timestamp = data['timestamp'] as Timestamp;
-              final status = data['status'];
+              final status = data['status'] ?? 'غير محدد';
 
               final formattedDate = DateFormat(
                 'yyyy-MM-dd hh:mm a',

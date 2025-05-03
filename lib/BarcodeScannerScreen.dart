@@ -40,6 +40,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               .collection('schools')
               .doc(schoolId)
               .get();
+
       if (schoolDoc.exists &&
           schoolDoc.data()!.containsKey('attendanceStartTime')) {
         final timeString = schoolDoc['attendanceStartTime'] as String;
@@ -96,37 +97,17 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         status = 'غياب';
       }
 
-      final today = DateTime.now();
-      final todayString =
-          "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
-
-      // ✅ 1. حفظ السجل اليومي تحت schoolId/date/studentId
-      await firestore
-          .collection('attendance')
-          .doc(scannedSchoolId)
-          .collection(todayString)
-          .doc(studentId)
-          .set({
-            'studentId': studentId,
-            'studentName': studentName,
-            'stage': stage,
-            'schoolClass': schoolClass,
-            'guardianId': guardianId,
-            'guardianPhone': guardianPhone,
-            'status': status,
-            'timestamp': FieldValue.serverTimestamp(),
-            'schoolId': scannedSchoolId,
-          }, SetOptions(merge: true));
-
-      // ✅ 2. حفظ الحالة الأخيرة تحت attendance/studentId (لشاشة الإداري)
-      await firestore.collection('attendance').doc(studentId).set({
-        'status': status,
-        'timestamp': FieldValue.serverTimestamp(),
-        'schoolId': scannedSchoolId,
+      await firestore.collection('attendance_records').add({
+        'studentId': studentId,
         'studentName': studentName,
         'stage': stage,
         'schoolClass': schoolClass,
-      }, SetOptions(merge: true));
+        'guardianId': guardianId,
+        'guardianPhone': guardianPhone,
+        'status': status,
+        'timestamp': FieldValue.serverTimestamp(),
+        'schoolId': scannedSchoolId,
+      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("✅ تم تسجيل $status للطالب: $studentName")),
@@ -135,9 +116,9 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       print("❌ خطأ أثناء التسجيل: $e");
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("خطأ أثناء تسجيل الحضور!")));
+      ).showSnackBar(SnackBar(content: Text("حدث خطأ أثناء تسجيل الحضور!")));
     }
-  } // 🔚 نهاية الكود
+  }
 
   void _resetScan() {
     setState(() {
@@ -212,10 +193,28 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                   const SizedBox(height: 10),
                   ElevatedButton.icon(
                     onPressed: _resetScan,
-                    icon: Icon(Icons.refresh),
-                    label: Text("إعادة المسح"),
+                    icon: const Icon(
+                      Icons.refresh,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    label: const Text(
+                      "إعادة المسح",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[300],
+                      backgroundColor: Colors.blue,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
                   ),
                 ],

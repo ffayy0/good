@@ -1,179 +1,193 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:mut6/excuse_upload_screen.dart';
 
-class AttendanceScreen extends StatefulWidget {
-  final String studentId;
+class GuardianAttendanceScreen extends StatefulWidget {
   final String guardianId;
+  final String studentId;
+  final String studentName;
 
-  const AttendanceScreen({
-    Key? key,
-    required this.studentId,
+  const GuardianAttendanceScreen({
+    super.key,
     required this.guardianId,
-  }) : super(key: key);
+    required this.studentId,
+    required this.studentName,
+    required String childName,
+  });
 
   @override
-  _AttendanceScreenState createState() => _AttendanceScreenState();
+  State<GuardianAttendanceScreen> createState() =>
+      _GuardianAttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen> {
-  late Future<Map<String, dynamic>> _studentDataFuture;
-  late Future<List<Map<String, dynamic>>> _attendanceRecordsFuture;
+class _GuardianAttendanceScreenState extends State<GuardianAttendanceScreen> {
+  DateTime selectedDate = DateTime.now();
+  Map<String, dynamic>? attendanceData;
 
   @override
   void initState() {
     super.initState();
-    _studentDataFuture = _fetchStudentData(widget.studentId);
-    _attendanceRecordsFuture = _fetchAttendanceRecords(widget.studentId);
+    initializeDateFormatting('ar_SA');
+    _loadAttendance();
   }
 
-  Future<Map<String, dynamic>> _fetchStudentData(String studentId) async {
-    try {
-      final studentDoc =
-          await FirebaseFirestore.instance
-              .collection('students')
-              .doc(studentId)
-              .get();
-      if (studentDoc.exists) {
-        return studentDoc.data()!;
-      } else {
-        throw Exception("لم يتم العثور على بيانات الطالب");
+  Future<void> _loadAttendance() async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
+
+    final snapshot =
+        await FirebaseFirestore.instance
+            .collection('attendance_records')
+            .where('studentId', isEqualTo: widget.studentId)
+            .get();
+
+    for (var doc in snapshot.docs) {
+      final data = doc.data();
+      final ts = (data['timestamp'] as Timestamp?)?.toDate();
+      if (ts != null && DateFormat('yyyy-MM-dd').format(ts) == dateStr) {
+        setState(() {
+          attendanceData = {
+            'status': data['status'],
+            'time': DateFormat('HH:mm').format(ts),
+          };
+        });
+        return;
       }
-    } catch (e) {
-      print("❌ خطأ أثناء جلب بيانات الطالب: $e");
-      throw Exception("حدث خطأ أثناء جلب بيانات الطالب");
     }
+
+    setState(() {
+      attendanceData = null;
+    });
   }
 
-  Future<List<Map<String, dynamic>>> _fetchAttendanceRecords(
-    String studentId,
-  ) async {
-    try {
-      final attendanceSnapshot =
-          await FirebaseFirestore.instance
-              .collection('attendance')
-              .where('studentId', isEqualTo: studentId)
-              .orderBy('timestamp', descending: true)
-              .get();
-      return attendanceSnapshot.docs.map((doc) => doc.data()).toList();
-    } catch (e) {
-      print("❌ خطأ أثناء جلب سجل الحضور: $e");
-      return [];
-    }
-  }
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: DateTime(2023),
+      lastDate: DateTime.now(),
+      locale: const Locale('ar', 'SA'),
+    );
 
-  String _formatTimestamp(Timestamp? timestamp) {
-    if (timestamp == null) return 'غير محدد';
-    final date = timestamp.toDate();
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')} ${date.hour}:${date.minute.toString().padLeft(2, '0')}";
+    if (picked != null) {
+      setState(() {
+        selectedDate = picked;
+      });
+      await _loadAttendance();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
+
+    String status = attendanceData?['status'] ?? 'غياب';
+    String? time = attendanceData?['time'];
+
+    IconData icon;
+    Color color;
+    switch (status) {
+      case 'حضور':
+        icon = Icons.check_circle;
+        color = Colors.green;
+        break;
+      case 'تأخير':
+        icon = Icons.access_time;
+        color = Colors.orange;
+        break;
+      default:
+        icon = Icons.cancel;
+        color = Colors.red;
+    }
+
+    // متغيرات اليوم والتاريخ لتمريرها إلى صفحة الأعذار
+    final day = DateFormat('EEEE', 'ar_SA').format(selectedDate);
+    final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: const Text("سجل الحضور"),
+        title: Text(
+          "حضور ${widget.studentName}",
+          style: TextStyle(
+            color: Colors.white, // لون النص في العنوان أبيض
+            fontSize: 20,
+          ),
+        ),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Colors.white), // سهم الرجوع أبيض
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            FutureBuilder<Map<String, dynamic>>(
-              future: _studentDataFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (snapshot.hasError || !snapshot.hasData) {
-                  return const Center(
-                    child: Text("حدث خطأ أثناء جلب بيانات الطالب"),
-                  );
-                } else {
-                  final studentData = snapshot.data!;
-                  return Container(
-                    padding: const EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
+            GestureDetector(
+              onTap: _pickDate,
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today, color: Colors.blue),
+                  const SizedBox(width: 10),
+                  Text(
+                    "التاريخ المختار: $dateStr",
+                    style: TextStyle(
+                      fontSize: 17, // تم زيادة حجم خط التاريخ
+                      fontWeight: FontWeight.w500,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Text(
-                          "معلومات الطالب: ${studentData['name']}",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          "الصف: ${studentData['schoolClass']}",
-                          style: const TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          "المرحلة: ${studentData['stage']}",
-                          style: const TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  );
-                }
-              },
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _attendanceRecordsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError || !snapshot.hasData) {
-                    return const Center(
-                      child: Text("حدث خطأ أثناء جلب بيانات الحضور"),
-                    );
-                  } else if (snapshot.data!.isEmpty) {
-                    return const Center(
-                      child: Text("لا توجد بيانات حضور متاحة"),
-                    );
-                  } else {
-                    final attendanceRecords = snapshot.data!;
-                    return ListView.builder(
-                      itemCount: attendanceRecords.length,
-                      itemBuilder: (context, index) {
-                        final record = attendanceRecords[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 5),
-                          child: ListTile(
-                            title: Text(
-                              "التاريخ: ${_formatTimestamp(record['timestamp'])}",
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text(
-                              "الحالة: ${record['status'] ?? 'غير محدد'}",
-                              style: TextStyle(
-                                color:
-                                    record['status'] == 'حضور'
-                                        ? Colors.green
-                                        : Colors.red,
-                              ),
-                            ),
+            const SizedBox(height: 30),
+
+            // ✅ Card قابل للنقر فقط إذا كانت الحالة "غياب" أو "تأخير"
+            GestureDetector(
+              onTap:
+                  (status == 'غياب' || status == 'تأخير')
+                      ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => ExcuseUploadScreen(
+                                  day: day,
+                                  date: formattedDate,
+                                  status: status,
+                                  guardianId: widget.guardianId,
+                                  studentId: widget.studentId,
+                                ),
                           ),
                         );
-                      },
-                    );
-                  }
-                },
+                      }
+                      : null,
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 20,
+                    horizontal: 24,
+                  ), // زيادة الحشوة قليلاً
+                  child: ListTile(
+                    title: Text(
+                      "الحالة: $status",
+                      style: TextStyle(fontSize: 18), // زيادة حجم النص قليلاً
+                    ),
+                    subtitle:
+                        time != null
+                            ? Text(
+                              "الوقت: $time",
+                              style: TextStyle(fontSize: 16),
+                            )
+                            : null,
+                    leading: Icon(icon, color: color, size: 40),
+                  ),
+                ),
               ),
             ),
           ],

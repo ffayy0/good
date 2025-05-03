@@ -200,7 +200,7 @@ class AddAdminScreen extends StatelessWidget {
             CustomTextField(
               controller: idController,
               icon: Icons.badge,
-              hintText: "رقم الإداري",
+              hintText: "رقم الهوية الاداري",
               iconColor: Colors.blue,
             ),
             SizedBox(height: 15),

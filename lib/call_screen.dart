@@ -3,37 +3,40 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // ✅ جديد
 import 'package:mut6/alert_dialog_helper.dart';
 
-class RequestHelpScreen extends StatefulWidget {
+class RequestHelpScreenWithSchoolInput extends StatefulWidget {
   final String studentId;
   final String studentName;
 
-  const RequestHelpScreen({
+  const RequestHelpScreenWithSchoolInput({
     Key? key,
     required this.studentId,
     required this.studentName,
+    required schoolId,
   }) : super(key: key);
 
   @override
-  _RequestHelpScreenState createState() => _RequestHelpScreenState();
+  _RequestHelpScreenWithSchoolInputState createState() =>
+      _RequestHelpScreenWithSchoolInputState();
 }
 
-class _RequestHelpScreenState extends State<RequestHelpScreen> {
+class _RequestHelpScreenWithSchoolInputState
+    extends State<RequestHelpScreenWithSchoolInput> {
   LatLng? _parentLocation;
   LatLng? _schoolLocation;
   LatLng _mapCenter = LatLng(24.5247, 39.5692);
   MapController _mapController = MapController();
+  final TextEditingController _schoolIdController = TextEditingController();
   bool _requestSent = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeLocationAndSchool();
+    _getCurrentLocation();
   }
 
-  Future<void> _initializeLocationAndSchool() async {
+  Future<void> _getCurrentLocation() async {
     try {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
@@ -46,57 +49,9 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
         _parentLocation = LatLng(position.latitude, position.longitude);
         _mapCenter = _parentLocation!;
       });
-
-      String? schoolId = await _getSchoolIdFromStudent(widget.studentId);
-      if (schoolId == null) {
-        _showLocationError();
-        return;
-      }
-
-      DocumentSnapshot schoolDoc =
-          await FirebaseFirestore.instance
-              .collection('schools')
-              .doc(schoolId)
-              .get();
-
-      if (!schoolDoc.exists ||
-          schoolDoc['latitude'] == null ||
-          schoolDoc['longitude'] == null) {
-        _showLocationError();
-        return;
-      }
-
-      _schoolLocation = LatLng(schoolDoc['latitude'], schoolDoc['longitude']);
-      setState(() {});
     } catch (e) {
-      print('❌ خطأ أثناء التهيئة: $e');
+      print('❌ خطأ في تحديد الموقع: $e');
       _showLocationError();
-    }
-  }
-
-  Future<String?> _getSchoolIdFromStudent(String studentId) async {
-    try {
-      final studentDoc =
-          await FirebaseFirestore.instance
-              .collection('students')
-              .doc(studentId)
-              .get();
-
-      if (!studentDoc.exists) return null;
-      final guardianId = studentDoc['guardianId'];
-
-      final parentQuery =
-          await FirebaseFirestore.instance
-              .collection('parents')
-              .where('id', isEqualTo: guardianId)
-              .limit(1)
-              .get();
-
-      if (parentQuery.docs.isEmpty) return null;
-      return parentQuery.docs.first['schoolId'];
-    } catch (e) {
-      print("❌ خطأ في استخراج schoolId: $e");
-      return null;
     }
   }
 
@@ -106,50 +61,63 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
       builder:
           (context) => const AlertDialog(
             title: Text("خطأ"),
-            content: Text("لم يتم تحديد موقعك أو موقع المدرسة بشكل صحيح."),
+            content: Text("لم يتم تحديد موقعك أو المدرسة بشكل صحيح."),
             actions: [TextButton(child: Text("حسناً"), onPressed: null)],
           ),
     );
   }
 
-  Future<void> _saveRequestToFirestore() async {
-    if (_requestSent || _parentLocation == null) return;
-
+  Future<bool> _isSchoolMatchingStudent(
+    String studentId,
+    String schoolId,
+  ) async {
     try {
-      // ✅ جلب schoolId من SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      String? schoolId = prefs.getString('schoolId') ?? '';
+      final query =
+          await FirebaseFirestore.instance
+              .collection('students')
+              .where('id', isEqualTo: studentId)
+              .limit(1)
+              .get();
 
-      await FirebaseFirestore.instance.collection('pikup_call').add({
-        'studentName': widget.studentName,
-        'studentId': widget.studentId,
-        'timestamp': Timestamp.now(),
-        'status': 'جديد',
-        'location':
-            '${_parentLocation!.latitude}, ${_parentLocation!.longitude}',
-        'schoolId': schoolId, // ✅ إضافة معرف المدرسة هنا
-      });
-
-      setState(() {
-        _requestSent = true;
-      });
-
-      Future.delayed(const Duration(minutes: 5), () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "انتهى الطلب تلقائيًا بعد 5 دقائق، يمكنك إنشاء طلب جديد الآن.",
-            ),
-            backgroundColor: Colors.orange,
-          ),
-        );
-      });
+      if (query.docs.isNotEmpty &&
+          query.docs.first.data()['schoolId'] == schoolId) {
+        return true;
+      }
     } catch (e) {
-      print('❌ خطأ أثناء حفظ الطلب: $e');
+      print("❌ خطأ أثناء التحقق من تطابق المدرسة والطالب: $e");
     }
+    return false;
   }
 
-  void _checkDistance() {
+  Future<void> _validateSchoolIdAndProceed() async {
+    final enteredId = _schoolIdController.text.trim();
+    if (enteredId.isEmpty) {
+      _showSnack("الرجاء إدخال معرف المدرسة");
+      return;
+    }
+
+    final doc =
+        await FirebaseFirestore.instance
+            .collection('schools')
+            .doc(enteredId)
+            .get();
+
+    if (!doc.exists || doc['latitude'] == null || doc['longitude'] == null) {
+      _showSnack("معرف المدرسة غير صحيح أو ناقص");
+      return;
+    }
+
+    final isMatch = await _isSchoolMatchingStudent(widget.studentId, enteredId);
+    if (!isMatch) {
+      _showSnack("المدرسة لا تتطابق مع الطالب");
+      return;
+    }
+
+    _schoolLocation = LatLng(doc['latitude'], doc['longitude']);
+    _checkDistance(enteredId);
+  }
+
+  void _checkDistance(String schoolId) {
     if (_parentLocation == null || _schoolLocation == null) {
       _showLocationError();
       return;
@@ -164,17 +132,15 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
     double walkingSpeedMetersPerMinute = 80;
     double estimatedMinutes = distanceInMeters / walkingSpeedMetersPerMinute;
 
-    print("📏 المسافة: $distanceInMeters متر ≈ $estimatedMinutes دقائق");
-
     if (estimatedMinutes <= 5) {
-      _saveRequestToFirestore();
+      _saveRequestToFirestore(schoolId);
       Navigator.push(
         context,
         MaterialPageRoute(
           builder:
               (context) => const AlertDialogHelper(
                 title: "تم إرسال الطلب",
-                message: "سيتم إلغاء الطلب بعد 5 دقائق تلقائيًا",
+                message: "يمكنك تكرار الطلب بعد 5 دقائق ",
               ),
         ),
       );
@@ -190,6 +156,41 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _saveRequestToFirestore(String schoolId) async {
+    if (_requestSent || _parentLocation == null) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('pikup_call').add({
+        'studentName': widget.studentName,
+        'studentId': widget.studentId,
+        'timestamp': Timestamp.now(),
+        'status': 'جديد',
+        'location':
+            '${_parentLocation!.latitude}, ${_parentLocation!.longitude}',
+        'schoolId': schoolId,
+      });
+
+      setState(() {
+        _requestSent = true;
+      });
+
+      Future.delayed(const Duration(minutes: 5), () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("انتهى الطلب  بعد 5 دقائق"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      });
+    } catch (e) {
+      print('❌ خطأ أثناء حفظ الطلب: $e');
+    }
+  }
+
+  void _showSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -209,6 +210,15 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
           children: [
+            const SizedBox(height: 20),
+            TextField(
+              controller: _schoolIdController,
+              decoration: InputDecoration(
+                labelText: "أدخل معرف المدرسة",
+                border: OutlineInputBorder(),
+              ),
+              textAlign: TextAlign.right,
+            ),
             const SizedBox(height: 20),
             const Align(
               alignment: Alignment.centerRight,
@@ -247,8 +257,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
                   children: [
                     TileLayer(
                       urlTemplate:
-                          'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      subdomains: ['a', 'b', 'c'],
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     ),
                     if (_parentLocation != null)
                       MarkerLayer(
@@ -285,7 +294,7 @@ class _RequestHelpScreenState extends State<RequestHelpScreen> {
               width: 150,
               height: 50,
               child: ElevatedButton(
-                onPressed: _checkDistance,
+                onPressed: _validateSchoolIdAndProceed,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 1, 113, 189),
                   shape: RoundedRectangleBorder(

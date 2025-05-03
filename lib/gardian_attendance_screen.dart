@@ -200,6 +200,7 @@ class AttendanceScreen extends StatelessWidget {
                                               date: record["date"],
                                               status: record["status"],
                                               guardianId: guardianId,
+                                              studentId: '',
                                             ),
                                       ),
                                     );

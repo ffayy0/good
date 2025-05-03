@@ -28,29 +28,27 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
   PlatformFile? pickedFile;
   String? uploadedFileUrl;
 
-  // متغيرات لتخزين الصف والفئة الديناميكية
-  String stage = "غير محدد"; // المرحلة
-  String schoolClass = "غير محدد"; // الفصل
+  String stage = "غير محدد";
+  String schoolClass = "غير محدد";
 
   @override
   void initState() {
     super.initState();
-    _fetchStudentData(); // جلب بيانات الطالب عند تحميل الشاشة
+    _fetchStudentData();
   }
 
-  // جلب بيانات الطالب من Firestore
   Future<void> _fetchStudentData() async {
     try {
       final studentSnapshot =
           await FirebaseFirestore.instance
-              .collection('students') // اسم الكولكشن الذي يحتوي بيانات الطلاب
-              .doc(widget.studentId) // معرف الطالب
+              .collection('students')
+              .doc(widget.studentId)
               .get();
       if (studentSnapshot.exists) {
         final data = studentSnapshot.data() as Map<String, dynamic>;
         setState(() {
-          stage = data['stage'] ?? 'غير محدد'; // المرحلة
-          schoolClass = data['schoolClass'] ?? 'غير محدد'; // الفصل
+          stage = data['stage'] ?? 'غير محدد';
+          schoolClass = data['schoolClass'] ?? 'غير محدد';
         });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -94,9 +92,7 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
   Future<void> _submitRequest() async {
     if (_validateFields()) {
       try {
-        // تحديد الصف والفصل بشكل ديناميكي
         final grade = "$stage/$schoolClass";
-
         await FirebaseFirestore.instance.collection('exitPermits').add({
           'studentId': widget.studentId,
           'studentName': widget.studentName,
@@ -109,14 +105,14 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
           'time': selectedTime != null ? _formatTime(selectedTime!) : '',
           'attachedFileUrl': uploadedFileUrl ?? '',
           'timestamp': DateTime.now(),
-          'grade': grade, // ✅ الصف والفصل الديناميكي
-          'status': null, // ✅ لضمان التوافق مع الفلترة
-          'schoolId': widget.schoolId, // ✅ تخزين schoolId
+          'grade': grade,
+          'status': null,
+          'schoolId': widget.schoolId,
         });
 
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text("تم إرسال الطلب بنجاح!")));
+        ).showSnackBar(const SnackBar(content: Text("تم إرسال الطلب بنجاح!")));
         _clearFields();
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -124,6 +120,104 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
         );
       }
     }
+  }
+
+  Future<void> _selectDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF112231),
+              onPrimary: Colors.white,
+              surface: Color(0xFFE8EAEC),
+              onSurface: Colors.black,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => selectedDate = picked);
+    }
+  }
+
+  Future<void> _selectTime() async {
+    final now = DateTime.now();
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF112231),
+              onPrimary: Colors.white,
+              surface: Color(0xFFE8EAEC),
+              onSurface: Colors.black,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime != null) {
+      final selectedDateTime = DateTime(
+        selectedDate?.year ?? now.year,
+        selectedDate?.month ?? now.month,
+        selectedDate?.day ?? now.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+      if (selectedDateTime.isBefore(now)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("لا يمكنك اختيار وقت قبل الوقت الحالي."),
+          ),
+        );
+        return;
+      }
+      setState(() {
+        selectedTime = pickedTime;
+      });
+    }
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  bool _validateFields() {
+    if (reasonController.text.isEmpty ||
+        selectedDate == null ||
+        selectedTime == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('يرجى ملء جميع الحقول')));
+      return false;
+    }
+    return true;
+  }
+
+  void _clearFields() {
+    reasonController.clear();
+    setState(() {
+      selectedDate = null;
+      selectedTime = null;
+      pickedFile = null;
+      uploadedFileUrl = null;
+    });
   }
 
   @override
@@ -226,89 +320,6 @@ class _RequestPermissionScreenState extends State<RequestPermissionScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _selectDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      setState(() => selectedDate = picked);
-    }
-  }
-
-  Future<void> _selectTime() async {
-    final now = DateTime.now();
-    final pickedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-      builder: (BuildContext context, Widget? child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: ColorScheme.light(
-              primary: const Color.fromARGB(255, 17, 34, 49),
-              onPrimary: const Color.fromARGB(255, 229, 232, 235),
-              surface: const Color.fromARGB(255, 232, 234, 236),
-              onSurface: Colors.black,
-            ),
-            dialogBackgroundColor: Colors.white,
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (pickedTime != null) {
-      // التحقق من أن الوقت المختار ليس قبل الوقت الحالي
-      final selectedDateTime = DateTime(
-        selectedDate?.year ?? now.year,
-        selectedDate?.month ?? now.month,
-        selectedDate?.day ?? now.day,
-        pickedTime.hour,
-        pickedTime.minute,
-      );
-      if (selectedDateTime.isBefore(now)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("لا يمكنك اختيار وقت قبل الوقت الحالي.")),
-        );
-        return;
-      }
-      setState(() {
-        selectedTime = pickedTime;
-      });
-    }
-  }
-
-  String _formatTime(TimeOfDay time) {
-    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$hour:$minute $period';
-  }
-
-  bool _validateFields() {
-    if (reasonController.text.isEmpty ||
-        selectedDate == null ||
-        selectedTime == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('يرجى ملء جميع الحقول')));
-      return false;
-    }
-    return true;
-  }
-
-  void _clearFields() {
-    reasonController.clear();
-    setState(() {
-      selectedDate = null;
-      selectedTime = null;
-      pickedFile = null;
-      uploadedFileUrl = null;
-    });
   }
 }
 

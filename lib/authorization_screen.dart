@@ -1,11 +1,14 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server.dart';
 import '../widgets/custom_text_field.dart';
 import 'widgets/custom_button_auth.dart';
 
 class AuthorizationScreen extends StatefulWidget {
-  final String guardianId; // معرف ولي الأمر المسجل
+  final String guardianId;
 
   const AuthorizationScreen({super.key, required this.guardianId});
 
@@ -16,16 +19,16 @@ class AuthorizationScreen extends StatefulWidget {
 class _AuthorizationScreenState extends State<AuthorizationScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController idController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
 
-  List<Map<String, dynamic>> allStudents = []; // جميع الطلاب المتاحين
-  List<Map<String, dynamic>> selectedStudents = []; // الطلاب المختارين
-  String? _schoolId; // معرف المدرسة للولي الأمر
+  List<Map<String, dynamic>> allStudents = [];
+  List<Map<String, dynamic>> selectedStudents = [];
+  String? _schoolId;
 
   @override
   void initState() {
     super.initState();
-    _fetchSchoolId(); // جلب schoolId عند بداية الشاشة
+    _fetchSchoolId();
     _fetchAvailableStudents(widget.guardianId);
   }
 
@@ -102,10 +105,56 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
     }
   }
 
+  String generateRandomPassword({int length = 8}) {
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final rand = Random();
+    return List.generate(
+      length,
+      (index) => chars[rand.nextInt(chars.length)],
+    ).join();
+  }
+
+  Future<void> _sendAuthorizationEmail({
+    required String recipientEmail,
+    required String agentName,
+    required String agentId,
+    required String password,
+    required String schoolId,
+  }) async {
+    final smtpServer = gmail("8ffaay01@gmail.com", "urwn frcb fzug ucyz");
+
+    final message =
+        Message()
+          ..from = Address("8ffaay01@gmail.com", 'متابع')
+          ..recipients.add(recipientEmail)
+          ..subject = "بيانات الدخول - تطبيق متابع"
+          ..html = """
+      <html dir="rtl">
+        <body style="font-family: Arial;">
+          <h3>مرحبًا $agentName،</h3>
+          <p>تم تسجيلك كموكل في <strong>تطبيق متابع</strong>.</p>
+          <p><strong>رقم الهوية:</strong> $agentId</p>
+          <p><strong>الرقم السري:</strong> $password</p>
+          <p><strong>معرف المدرسة:</strong> $schoolId</p>
+          <p>يرجى الاحتفاظ بهذه المعلومات وعدم مشاركتها.</p>
+          <p>تحياتنا،<br>فريق متابع</p>
+        </body>
+      </html>
+      """;
+
+    try {
+      await send(message, smtpServer);
+      print("✅ تم إرسال البريد بنجاح");
+    } catch (e) {
+      print("❌ فشل إرسال البريد: $e");
+    }
+  }
+
   Future<bool> _validateFields(BuildContext context) async {
     final name = nameController.text.trim();
     final id = idController.text.trim();
-    final password = passwordController.text.trim();
+    final email = emailController.text.trim();
 
     if (name.isEmpty || !name.contains(" ")) {
       ScaffoldMessenger.of(
@@ -129,10 +178,10 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
       return false;
     }
 
-    if (password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("كلمة المرور يجب أن تكون 6 أحرف أو أكثر.")),
-      );
+    if (!email.contains('@')) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("يرجى إدخال بريد إلكتروني صالح")));
       return false;
     }
 
@@ -151,7 +200,7 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
   void _clearFields() {
     nameController.clear();
     idController.clear();
-    passwordController.clear();
+    emailController.clear();
     selectedStudents.clear();
   }
 
@@ -187,11 +236,10 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
               iconColor: Colors.blue,
             ),
             CustomTextField(
-              controller: passwordController,
-              icon: Icons.lock,
-              hintText: 'كلمة المرور',
+              controller: emailController,
+              icon: Icons.email,
+              hintText: 'البريد الإلكتروني',
               iconColor: Colors.blue,
-              obscureText: true,
             ),
             const SizedBox(height: 20),
             Text(
@@ -233,12 +281,13 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
                   title: 'تسجيل',
                   onPressed: () async {
                     if (await _validateFields(context)) {
+                      final randomPassword = generateRandomPassword();
                       try {
                         final UserCredential userCredential = await FirebaseAuth
                             .instance
                             .createUserWithEmailAndPassword(
                               email: "${idController.text}@example.com",
-                              password: passwordController.text,
+                              password: randomPassword,
                             );
 
                         final String agentId = userCredential.user!.uid;
@@ -249,7 +298,8 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
                             .set({
                               'name': nameController.text,
                               'id': idController.text,
-                              'password': passwordController.text,
+                              'email': emailController.text,
+                              'password': randomPassword,
                               'guardianId': widget.guardianId,
                               'schoolId': _schoolId ?? '',
                             });
@@ -266,8 +316,20 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
                               });
                         }
 
+                        await _sendAuthorizationEmail(
+                          recipientEmail: emailController.text,
+                          agentName: nameController.text,
+                          agentId: idController.text,
+                          password: randomPassword,
+                          schoolId: _schoolId!,
+                        );
+
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("تم تسجيل الحساب بنجاح")),
+                          SnackBar(
+                            content: Text(
+                              "تم تسجيل الحساب وإرسال المعلومات على البريد",
+                            ),
+                          ),
                         );
 
                         _clearFields();

@@ -119,6 +119,9 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                                         },
                                         controlAffinity:
                                             ListTileControlAffinity.leading,
+                                        activeColor:
+                                            Colors
+                                                .blue, // تغيير لون المربع إلى الأزرق
                                       );
                                     }).toList(),
                               ),

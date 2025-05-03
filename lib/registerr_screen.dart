@@ -21,7 +21,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController confirmPasswordController =
       TextEditingController();
   final TextEditingController emailController = TextEditingController();
+
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   String? selectedStage;
   final List<String> schoolStages = ['ابتدائي', 'متوسط', 'ثانوي'];
@@ -109,11 +112,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _showSnackBar('يرجى إدخال موقع المدرسة.');
       return;
     }
-    String passwordPattern = r'^(?=.*[a-zA-Z0-9!@#\$&\.]).{6,}$';
-    RegExp regExp = RegExp(passwordPattern);
-    if (password.isEmpty || !regExp.hasMatch(password)) {
+    if (password.isEmpty ||
+        password.length < 8 ||
+        password.length > 10 ||
+        !RegExp(r'^\S{8,10}$').hasMatch(password)) {
       _showSnackBar(
-        'كلمة المرور يجب أن تحتوي على حروف أو أرقام أو رموز وطول لا يقل عن ٦ أحرف.',
+        'كلمة المرور يجب أن تحتوي على أي رموز أو حروف أو أرقام بطول من 8 إلى 10 أحرف.',
       );
       return;
     }
@@ -208,11 +212,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: 200,
                 height: 150,
               ),
-              const SizedBox(height: 20),
-              const Text(
-                'تسجيل حساب مدرسة',
-                style: TextStyle(fontSize: 20, color: Colors.black),
-              ),
               const SizedBox(height: 30),
               _buildDropdownField(
                 label: 'مرحلة المدرسة',
@@ -262,14 +261,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 passwordController,
                 'كلمة المرور',
                 Icons.lock,
-                obscureText: true,
+                obscureText: _obscurePassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                ),
               ),
               const SizedBox(height: 15),
               _buildInputField(
                 confirmPasswordController,
                 'تأكيد كلمة المرور',
                 Icons.lock_outline,
-                obscureText: true,
+                obscureText: _obscureConfirmPassword,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                    });
+                  },
+                ),
               ),
               const SizedBox(height: 30),
               _buildActionButton('تسجيل', registerSchool),
@@ -286,6 +307,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     IconData icon, {
     bool obscureText = false,
     String? helperText,
+    Widget? suffixIcon,
   }) {
     return TextField(
       controller: controller,
@@ -294,6 +316,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         prefixIcon: Icon(icon, color: const Color.fromARGB(255, 1, 113, 189)),
         hintText: hint,
         helperText: helperText,
+        suffixIcon: suffixIcon,
         filled: true,
         fillColor: Colors.grey[300],
         border: OutlineInputBorder(

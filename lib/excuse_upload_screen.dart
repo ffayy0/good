@@ -1,21 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart'; // لاختيار الملف
-import 'package:firebase_storage/firebase_storage.dart'; // لتخزين الملف في Firebase Storage
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mut6/parent_screen.dart'; // لإدارة Firestore
 
 class ExcuseUploadScreen extends StatefulWidget {
   final String day;
   final String date;
   final String status;
-  final String guardianId; // إضافة معلمة guardianId
+  final String guardianId;
+  final String studentId;
 
   const ExcuseUploadScreen({
     super.key,
     required this.day,
     required this.date,
     required this.status,
-    required this.guardianId, // إضافة guardianId كمعلمة إجبارية
+    required this.guardianId,
+    required this.studentId,
   });
 
   @override
@@ -23,93 +24,85 @@ class ExcuseUploadScreen extends StatefulWidget {
 }
 
 class _ExcuseUploadScreenState extends State<ExcuseUploadScreen> {
-  PlatformFile? pickedFile; // لتخزين الملف المختار
-  bool isUploading = false; // لمعرفة حالة الرفع
+  PlatformFile? pickedFile;
+  bool isUploading = false;
+  TextEditingController reasonController = TextEditingController();
 
-  // دالة لاختيار الملف
   Future<void> pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpeg', 'jpg'], // أنواع الملفات المدعومة
+      allowedExtensions: ['pdf', 'jpeg', 'jpg'],
     );
 
     if (result != null) {
       setState(() {
-        pickedFile = result.files.first; // تخزين الملف المختار
+        pickedFile = result.files.first;
       });
     }
   }
 
-  // دالة لرفع الملف إلى Firebase
   Future<void> uploadFile(BuildContext context) async {
-    if (pickedFile == null) {
+    if (reasonController.text.trim().isEmpty && pickedFile == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("يرجى اختيار ملف أولاً")));
+      ).showSnackBar(SnackBar(content: Text("يرجى كتابة سبب أو رفع ملف")));
       return;
     }
 
     setState(() {
-      isUploading = true; // تفعيل حالة الرفع
+      isUploading = true;
     });
 
     try {
-      // 1. رفع الملف إلى Firebase Storage
-      final storageRef = FirebaseStorage.instance.ref().child(
-        'excuses/${pickedFile!.name}',
-      ); // مسار تخزين الملف
-      final uploadTask = storageRef.putData(pickedFile!.bytes!); // رفع الملف
-      final snapshot = await uploadTask.whenComplete(() {});
+      String fileUrl = '';
 
-      // 2. الحصول على رابط الملف
-      final fileUrl = await snapshot.ref.getDownloadURL();
+      if (pickedFile != null) {
+        final storageRef = FirebaseStorage.instance.ref().child(
+          'excuses/${pickedFile!.name}',
+        );
+        final uploadTask = storageRef.putData(pickedFile!.bytes!);
+        final snapshot = await uploadTask.whenComplete(() {});
+        fileUrl = await snapshot.ref.getDownloadURL();
+      }
 
-      // 3. حفظ بيانات العذر في Firestore
-      await FirebaseFirestore.instance.collection('excuses').add({
-        'day': widget.day, // اليوم
-        'date': widget.date, // التاريخ
-        'status': widget.status, // الحالة (غائب أو متأخر)
-        'fileUrl': fileUrl, // رابط الملف
-        'timestamp': DateTime.now(), // وقت الرفع
+      // ✅ تم تغيير اسم المجموعة من "excuses" إلى "student_excuses"
+      await FirebaseFirestore.instance.collection('student_excuses').add({
+        'day': widget.day,
+        'date': widget.date,
+        'status': widget.status,
+        'studentId': widget.studentId,
+        'reason': reasonController.text,
+        'fileUrl': fileUrl,
+        'timestamp': DateTime.now(),
       });
 
-      // 4. عرض رسالة نجاح والانتقال إلى GuardianScreen
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text("تم رفع العذر بنجاح")));
+      ).showSnackBar(SnackBar(content: Text("تم حفظ العذر بنجاح")));
 
-      // التنقل إلى GuardianScreen وإزالة جميع الصفحات الأخرى من الـ Stack
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => GuardianScreen(
-                guardianId: widget.guardianId, // تمرير guardianId
-              ),
-        ),
-        (route) => false, // إزالة جميع الصفحات الأخرى
-      );
+      Navigator.pop(context);
     } catch (e) {
-      // عرض رسالة خطأ في حال فشل الرفع
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("حدث خطأ أثناء الرفع: $e")));
+      ).showSnackBar(SnackBar(content: Text("خطأ: $e")));
     } finally {
       setState(() {
-        isUploading = false; // إيقاف حالة الرفع
+        isUploading = false;
       });
     }
   }
 
   @override
+  void dispose() {
+    reasonController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.green,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
+        title: Text(
           "رفع العذر",
           style: TextStyle(
             color: Colors.white,
@@ -117,105 +110,158 @@ class _ExcuseUploadScreenState extends State<ExcuseUploadScreen> {
             fontWeight: FontWeight.bold,
           ),
         ),
+        backgroundColor: Colors.green,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: Icon(Icons.arrow_back, color: Colors.white, size: 24),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text(
-                    "معلومات الطالبة: مريم خالد",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
+            // ✅ مربع معلومات الطالب - تم استعادته
+            StreamBuilder<DocumentSnapshot>(
+              stream:
+                  FirebaseFirestore.instance
+                      .collection('students')
+                      .doc(widget.studentId)
+                      .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return Container(
+                    padding: EdgeInsets.all(15),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text("لا توجد بيانات للطالب"),
+                  );
+                }
+
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                final studentName = data['name'] ?? 'غير معروف';
+
+                return Container(
+                  padding: EdgeInsets.all(15),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  const SizedBox(height: 5),
-                  const Text(
-                    "الصف: ١/٢",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 15),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text(
-                        "الحالة",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        "اليوم / التاريخ",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(thickness: 1),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        "معلومات الطالب: $studentName",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 15),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(
-                            widget.status == "غائب"
-                                ? Icons.circle
-                                : Icons.access_time,
-                            color:
-                                widget.status == "غائب"
-                                    ? Colors.red
-                                    : Colors.orange,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 5),
                           Text(
-                            widget.status == "غائب" ? "غائب" : "متأخر",
-                            style: const TextStyle(fontSize: 16),
+                            "الحالة",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            "اليوم / التاريخ",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
-                      Text(
-                        "${widget.day} ${widget.date}",
-                        style: const TextStyle(fontSize: 16),
+                      Divider(thickness: 1),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                widget.status == "غياب"
+                                    ? Icons.circle
+                                    : Icons.access_time,
+                                color:
+                                    widget.status == "غياب"
+                                        ? Colors.red
+                                        : Colors.orange,
+                                size: 16,
+                              ),
+                              SizedBox(width: 5),
+                              Text(
+                                widget.status == "غياب" ? "غياب" : "تأخير",
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            "${widget.day} ${widget.date}",
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
-            const SizedBox(height: 30),
-            const Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                ":الرجاء إرفاق العذر",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+
+            SizedBox(height: 30),
+
+            // 📝 مربع النص لكتابة السبب - كبير + خط واضح + حدود زرقاء
+            Container(
+              margin: EdgeInsets.only(bottom: 20),
+              child: TextField(
+                controller: reasonController,
+                maxLines: 4,
+                style: TextStyle(fontSize: 18), // ✅ زيادة حجم الخط داخل المربع
+                decoration: InputDecoration(
+                  labelText: "اكتب سبب الغياب أو التأخير هنا...",
+                  labelStyle: TextStyle(
+                    fontSize: 16,
+                    color: Colors.blue,
+                  ), // ✅ لون التلميح أزرق
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Colors.blue,
+                      width: 2,
+                    ), // ✅ الحدود الزرقاء
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Colors.blue.shade700,
+                      width: 2,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey[200], // خلفية فاتحة
+                  contentPadding: EdgeInsets.symmetric(
+                    vertical: 16,
+                    horizontal: 16,
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+
+            SizedBox(height: 10),
+
+            // 🔁 اختيار الملف (اختياري)
             InkWell(
-              onTap: pickFile, // عند النقر، يتم اختيار الملف
+              onTap: pickFile,
               child: Container(
                 width: double.infinity,
                 height: 50,
@@ -226,8 +272,8 @@ class _ExcuseUploadScreenState extends State<ExcuseUploadScreen> {
                 child: Center(
                   child: Text(
                     pickedFile != null
-                        ? "تم اختيار: ${pickedFile!.name}" // عرض اسم الملف إذا تم اختياره
-                        : "PDF , JPEG", // نص افتراضي إذا لم يتم اختيار ملف
+                        ? "ملف مختار: ${pickedFile!.name}"
+                        : "PDF , JPEG (اختياري)",
                     style: TextStyle(
                       color: pickedFile != null ? Colors.black : Colors.black54,
                       fontSize: 16,
@@ -237,37 +283,39 @@ class _ExcuseUploadScreenState extends State<ExcuseUploadScreen> {
                 ),
               ),
             ),
-            const Spacer(),
-            SizedBox(
-              width: 150,
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 1, 113, 189),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
+
+            SizedBox(height: 40),
+
+            // ✅ زر التالي في المنتصف
+            Align(
+              alignment: Alignment.center,
+              child: SizedBox(
+                width: 200,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: isUploading ? null : () => uploadFile(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color.fromARGB(255, 1, 113, 189),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
                   ),
-                ),
-                onPressed:
-                    isUploading
-                        ? null
-                        : () => uploadFile(context), // تعطيل الزر أثناء الرفع
-                child:
-                    isUploading
-                        ? const CircularProgressIndicator(
-                          color: Colors.white,
-                        ) // عرض مؤشر التحميل
-                        : const Text(
-                          "رفع العذر",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                  child:
+                      isUploading
+                          ? CircularProgressIndicator(color: Colors.white)
+                          : Text(
+                            "التالي",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
+                ),
               ),
             ),
-            const SizedBox(height: 30),
+
+            SizedBox(height: 20),
           ],
         ),
       ),

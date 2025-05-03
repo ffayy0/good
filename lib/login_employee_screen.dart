@@ -5,7 +5,8 @@ import 'package:mut6/admin_screen.dart';
 import 'package:mut6/home_screen.dart';
 import 'package:mut6/providers/TeacherProvider.dart';
 import 'package:mut6/teacher_screen.dart';
-import 'package:provider/provider.dart'; // استيراد Provider
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginEmployeeScreen extends StatefulWidget {
   const LoginEmployeeScreen({Key? key}) : super(key: key);
@@ -33,7 +34,6 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
         return;
       }
 
-      // البحث في مجموعة الإداريين
       var adminQuery =
           await FirebaseFirestore.instance
               .collection('admins')
@@ -41,7 +41,6 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
               .limit(1)
               .get();
 
-      // البحث في مجموعة المعلمين إذا لم يكن إداريًا
       var teacherQuery =
           await FirebaseFirestore.instance
               .collection('teachers')
@@ -49,7 +48,6 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
               .limit(1)
               .get();
 
-      // التحقق من وجود الحساب في أي من المجموعتين
       if (adminQuery.docs.isNotEmpty) {
         _validateAndNavigate(adminQuery.docs.first, password, "admin");
       } else if (teacherQuery.docs.isNotEmpty) {
@@ -63,6 +61,7 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
         );
       }
     } catch (e) {
+      print("❌ خطأ أثناء تسجيل الدخول: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("حدث خطأ أثناء تسجيل الدخول"),
@@ -76,7 +75,7 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
     DocumentSnapshot userDoc,
     String password,
     String role,
-  ) {
+  ) async {
     var userData = userDoc.data() as Map<String, dynamic>;
     String storedPassword = userData['password'];
 
@@ -90,7 +89,6 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
       return;
     }
 
-    // نجاح تسجيل الدخول وتحديد الصفحة المناسبة
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("تم تسجيل الدخول بنجاح!"),
@@ -100,17 +98,19 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
 
     Widget nextScreen;
     if (role == "admin") {
-      nextScreen = AdminScreen();
+      // حفظ schoolId في SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('schoolId', userData['schoolId']);
+
+      nextScreen = const AdminScreen();
     } else {
-      // تخزين بيانات المعلم في TeacherProvider
       final teacherProvider = Provider.of<TeacherProvider>(
         context,
         listen: false,
       );
       teacherProvider.setTeacherData(userData['id'], userData['name']);
 
-      // افتراض أن هناك مدة محددة في بيانات المستخدم
-      int exitMinutes = userData['exitDuration'] ?? 10; // افتراضياً 10 دقائق
+      int exitMinutes = userData['exitDuration'] ?? 10;
       nextScreen = StudyStageScreen(
         exitDuration: Duration(minutes: exitMinutes),
       );
@@ -168,7 +168,6 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
   Widget _buildPasswordRecoveryButton() {
     return TextButton(
       onPressed: () {
-        // الانتقال إلى شاشة استعادة كلمة المرور
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => PasswordRecoveryScreen()),
@@ -200,10 +199,9 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () {
-            // العودة إلى HomeScreen
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => HomeScreen()),
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           },
         ),
@@ -218,7 +216,7 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
               height: 180,
             ),
             const SizedBox(height: 30),
-            _buildInputField(_idController, 'رقم الموظف', Icons.person),
+            _buildInputField(_idController, 'رقم الهوية ', Icons.person),
             const SizedBox(height: 10),
             _buildInputField(
               _passwordController,
@@ -229,7 +227,7 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
             const SizedBox(height: 20),
             _buildActionButton('تسجيل دخول', _login),
             const SizedBox(height: 10),
-            _buildPasswordRecoveryButton(), // زر استعادة كلمة المرور
+            _buildPasswordRecoveryButton(),
           ],
         ),
       ),

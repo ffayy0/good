@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mut6/RequestsListScreen.dart';
 import 'package:mut6/call_screen.dart';
 
 class AgentChildrenScreen extends StatefulWidget {
@@ -18,11 +17,32 @@ class AgentChildrenScreen extends StatefulWidget {
 class _AgentChildrenScreenState extends State<AgentChildrenScreen> {
   late Future<List<Map<String, dynamic>>> _studentsFuture;
   Map<String, bool> selectedStudents = {}; // التابعين المختارين
+  String? _schoolId;
 
   @override
   void initState() {
     super.initState();
+    _fetchSchoolId(); // ✅ جلب معرف المدرسة من بيانات الوكيل
     _studentsFuture = _fetchStudentsByAgentId(widget.agentId);
+  }
+
+  Future<void> _fetchSchoolId() async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('Authorizations')
+              .where('id', isEqualTo: widget.agentId)
+              .limit(1)
+              .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        setState(() {
+          _schoolId = snapshot.docs.first['schoolId'];
+        });
+      }
+    } catch (e) {
+      print("❌ خطأ أثناء جلب schoolId من الوكيل: $e");
+    }
   }
 
   Future<List<Map<String, dynamic>>> _fetchStudentsByAgentId(
@@ -151,8 +171,6 @@ class _AgentChildrenScreenState extends State<AgentChildrenScreen> {
                 },
               ),
             ),
-
-            // ✅ زر التالي تحت القائمة
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
@@ -167,14 +185,25 @@ class _AgentChildrenScreenState extends State<AgentChildrenScreen> {
                     SnackBar(content: Text('يرجى اختيار تابع واحد على الأقل')),
                   );
                 } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) =>
-                              RequestHelpScreen(studentId: '', studentName: ''),
-                    ),
-                  );
+                  final selectedId = selectedList.first;
+
+                  _studentsFuture.then((students) {
+                    final selectedStudent = students.firstWhere(
+                      (s) => s['id'] == selectedId,
+                    );
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => RequestHelpScreenWithSchoolInput(
+                              studentId: selectedStudent["id"],
+                              studentName: selectedStudent["name"],
+                              schoolId: _schoolId ?? '',
+                            ),
+                      ),
+                    );
+                  });
                 }
               },
               style: ElevatedButton.styleFrom(

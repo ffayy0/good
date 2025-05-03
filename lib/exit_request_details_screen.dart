@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:mut6/RequestDetailsScreen.dart';
+import 'RequestDetailsScreen.dart';
 
 class ExitPermitsScreen extends StatelessWidget {
   static final FirebaseFirestore firestore = FirebaseFirestore.instance;

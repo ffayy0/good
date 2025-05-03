@@ -26,6 +26,7 @@ class _SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
             .collection('schools')
             .doc(schoolId)
             .get();
+
     if (doc.exists && doc.data()!.containsKey('attendanceStartTime')) {
       String timeStr = doc['attendanceStartTime'];
       List<String> parts = timeStr.split(":");
@@ -77,33 +78,91 @@ class _SchoolDashboardScreenState extends State<SchoolDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white, // ✅ الخلفية كلها بيضاء
       appBar: AppBar(
         title: Text(
-          'لوحة المدرسة',
+          'موعد الحضور ',
           style: TextStyle(color: Colors.white, fontSize: 20),
         ),
         backgroundColor: Colors.green,
         iconTheme: IconThemeData(color: Colors.white),
+        elevation: 0,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ListTile(
-              title: Text(
-                _formattedTime != null
-                    ? "وقت البداية المحدد: $_formattedTime"
-                    : "لم يتم تحديد وقت بعد",
-                style: TextStyle(fontSize: 18),
+            Card(
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-              trailing: Icon(Icons.access_time),
-              onTap: _pickTime,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white, // ✅ جعل الخلفية بيضاء تمامًا
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    // لوجو المدرسة من الرابط
+                    Image.network(
+                      'https://i.postimg.cc/DwnKf079/321e9c9d-4d67-4112-a513-d368fc26b0c0.jpg',
+                      width: 100,
+                      height: 100,
+                      fit: BoxFit.contain,
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      "وقت تسجيل الحضور",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: _pickTime,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(vertical: 15),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.green, width: 1.5),
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.white,
+                        ),
+                        child: Center(
+                          child: Text(
+                            _formattedTime != null
+                                ? "الوقت المحدد: $_formattedTime"
+                                : "اضغط لاختيار الوقت",
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
+
+            SizedBox(height: 20),
+            ElevatedButton.icon(
               onPressed: _saveAttendanceTime,
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-              child: Text('حفظ الوقت'),
+              icon: Icon(Icons.save, color: Colors.white),
+              label: Text("حفظ الوقت", style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                padding: EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: TextStyle(fontSize: 16),
+              ),
             ),
           ],
         ),
