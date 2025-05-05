@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mut6/widgets/custom_button_auth.dart';
-import 'package:mut6/widgets/custom_text_field.dart';
+import '../widgets/custom_text_field.dart';
 
 class TeachersListScreen extends StatefulWidget {
+  // إضافة schoolId كمتغير للشاشة
+  final String schoolId;
+
+  // تعديل البناء لتلقي schoolId من الشاشة السابقة
+  TeachersListScreen({required this.schoolId});
+
   @override
   _TeachersListScreenState createState() => _TeachersListScreenState();
 }
@@ -25,10 +31,14 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
         ),
       ),
       body: StreamBuilder<QuerySnapshot>(
+        // تعديل الاستعلام لإضافة شرط التصفية باستخدام schoolId
         stream:
             FirebaseFirestore.instance
                 .collection('teachers')
-                .where('schoolId', isEqualTo: "mbRn2ksjlMNlTNztNXoMYcJxAco1")
+                .where(
+                  'schoolId',
+                  isEqualTo: widget.schoolId,
+                ) // إضافة شرط التصفية
                 .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) return Center(child: Text("حدث خطأ ما"));
@@ -85,7 +95,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                     Expanded(
                       child: CustomButtonAuth(
                         title: "حذف",
-                        onPressed: _deleteSelectedTeachers,
+                        onPressed: _showDeleteDialog, // استدعاء الدالة الجديدة
                         color: Colors.blue,
                       ),
                     ),
@@ -126,21 +136,19 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
             .get();
     if (!doc.exists) return;
     Map<String, dynamic> teacherData = doc.data() as Map<String, dynamic>;
-
     // إنشاء Controllers للحقول
     TextEditingController nameController = TextEditingController(
       text: teacherData['name'] ?? "",
     );
     TextEditingController idController = TextEditingController(
       text: selectedId,
-    ); // ID المعلم
+    );
     TextEditingController phoneController = TextEditingController(
       text: teacherData['phone'] ?? "",
     );
     TextEditingController emailController = TextEditingController(
       text: teacherData['email'] ?? "",
     );
-
     showDialog(
       context: context,
       builder: (context) {
@@ -153,7 +161,7 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                 CustomTextField(
                   controller: nameController,
                   icon: Icons.person,
-                  hintText: "اسم المعلم",
+                  hintText: "اسم المعلم (ثلاثي)",
                   iconColor: Colors.blue,
                 ),
                 CustomTextField(
@@ -196,11 +204,21 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                       String name = nameController.text.trim();
                       String phone = phoneController.text.trim();
                       String email = emailController.text.trim();
-
                       // التحقق من صحة البيانات
                       if (name.isEmpty || phone.isEmpty || email.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text("جميع الحقول مطلوبة")),
+                        );
+                        return;
+                      }
+                      // التحقق من أن الاسم الثلاثي مكون من 3 أجزاء على الأقل
+                      if (name.split(' ').length < 3) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              "يرجى إدخال الاسم الثلاثي (على الأقل 3 أجزاء).",
+                            ),
+                          ),
                         );
                         return;
                       }
@@ -243,7 +261,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
                         );
                         return;
                       }
-
                       // تحديث البيانات في Firestore
                       await FirebaseFirestore.instance
                           .collection('teachers')
@@ -269,59 +286,6 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
     );
   }
 
-  void _deleteSelectedTeachers() async {
-    List<String> selectedIds =
-        selectedTeachers.keys
-            .where((id) => selectedTeachers[id] == true)
-            .toList();
-    if (selectedIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("يرجى اختيار معلم واحد على الأقل")),
-      );
-      return;
-    }
-    showDialog(
-      context: context,
-      builder:
-          (_) => AlertDialog(
-            title: Text("تأكيد الحذف"),
-            content: Text("هل أنت متأكد من حذف المعلمين المحددين؟"),
-            actions: [
-              TextButton(
-                child: Text(
-                  "إلغاء",
-                  style: TextStyle(
-                    color: const Color.fromARGB(255, 14, 125, 216),
-                  ),
-                ),
-                onPressed: () => Navigator.pop(context),
-              ),
-              TextButton(
-                child: Text(
-                  "حذف",
-                  style: TextStyle(
-                    color: const Color.fromARGB(255, 14, 125, 216),
-                  ),
-                ),
-                onPressed: () async {
-                  for (String id in selectedIds) {
-                    await FirebaseFirestore.instance
-                        .collection('teachers')
-                        .doc(id)
-                        .delete();
-                  }
-                  setState(() => selectedTeachers.clear());
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("تم حذف المعلمين بنجاح")),
-                  );
-                },
-              ),
-            ],
-          ),
-    );
-  }
-
   Future<bool> _isPhoneAvailable(String phone, String currentId) async {
     final snap =
         await FirebaseFirestore.instance
@@ -340,5 +304,68 @@ class _TeachersListScreenState extends State<TeachersListScreen> {
             .get();
     return snap.docs.isEmpty ||
         (snap.docs.length == 1 && snap.docs.first.id == currentId);
+  }
+
+  void _showDeleteDialog() {
+    List<String> selectedIds =
+        selectedTeachers.keys
+            .where((id) => selectedTeachers[id] == true)
+            .toList();
+    if (selectedIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("يرجى اختيار معلم واحد على الأقل للحذف")),
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Center(
+            child: Text(
+              "تأكيد العملية",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+          ),
+          content: Text("هل أنت متأكد من حذف المعلمين المحددين؟"),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: CustomButtonAuth(
+                    title: "إلغاء",
+                    onPressed: () => Navigator.pop(context),
+                    color: const Color.fromRGBO(33, 150, 243, 1),
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: CustomButtonAuth(
+                    title: "حذف",
+                    onPressed: () async {
+                      for (String id in selectedIds) {
+                        await FirebaseFirestore.instance
+                            .collection('teachers')
+                            .doc(id)
+                            .delete();
+                      }
+                      setState(() {
+                        selectedTeachers.clear();
+                      });
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("تم حذف المعلمين بنجاح")),
+                      );
+                    },
+                    color: const Color.fromRGBO(33, 150, 243, 1),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
   }
 }

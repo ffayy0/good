@@ -1,9 +1,17 @@
+//الاداري الاسماء
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:mut6/exit_permits_screen.dart'
-    show RequestDetailsScreen; // تأكد من المسار الصحيح
+import 'package:mut6/exit_permits_screen.dart' show RequestDetailsScreen;
+import 'package:mut6/exit_request_details_screen.dart';
 
 class PermissionScreen extends StatelessWidget {
+  // إضافة schoolId كمتغير للشاشة
+  final String schoolId;
+
+  // تعديل البناء لتلقي schoolId من الشاشة السابقة
+  PermissionScreen({required this.schoolId});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -22,13 +30,12 @@ class PermissionScreen extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
         child: StreamBuilder<QuerySnapshot>(
+          // تعديل الاستعلام لإضافة شرط التصفية باستخدام schoolId
           stream:
               FirebaseFirestore.instance
                   .collection('exitPermits')
-                  .where(
-                    'status',
-                    isNull: true,
-                  ) // عرض الطلبات التي لا تحتوي على الحقل status أو تحتوي على null
+                  .where('status', isNull: true)
+                  .where('schoolId', isEqualTo: schoolId) // إضافة شرط التصفية
                   .snapshots(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {

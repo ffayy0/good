@@ -8,7 +8,6 @@ import 'package:mut6/StudentSearchScreen.dart';
 import 'package:mut6/add_parents_screen.dart';
 import 'package:mut6/add_students_screen.dart' as student;
 import 'package:mut6/add_teachers_screen.dart';
-import 'package:mut6/attached%20excuses.dart';
 import 'package:mut6/home_screen.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:typed_data';
@@ -25,14 +24,6 @@ class CustomDrawer extends StatefulWidget {
 
 class _CustomDrawerState extends State<CustomDrawer> {
   final bool _isLoading = false;
-
-  Future<void> generateAndSaveBarcodes() async {
-    // ... (كود توليد الباركود إذا كنت تستخدمه)
-  }
-
-  Future<void> sendBarcodeByEmail(String studentName, String barcodeUrl) async {
-    // ... (كود إرسال البريد إذا كنت تستخدمه)
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,12 +65,24 @@ class _CustomDrawerState extends State<CustomDrawer> {
             },
           ),
           drawerItem(
-            title: "معلمين",
+            title: "المعلمين",
             icon: Icons.person,
-            onTap: () {
+            onTap: () async {
+              final prefs = await SharedPreferences.getInstance();
+              final schoolId = prefs.getString('schoolId') ?? '';
+
+              if (schoolId.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("لا يمكن تحديد معرف المدرسة")),
+                );
+                return;
+              }
+
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => TeachersListScreen()),
+                MaterialPageRoute(
+                  builder: (context) => TeachersListScreen(schoolId: schoolId),
+                ),
               );
             },
           ),
@@ -152,44 +155,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   void _logout(BuildContext context) async {
-    final shouldLogout = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('تأكيد تسجيل الخروج'),
-            content: const Text('هل أنت متأكد أنك تريد تسجيل الخروج؟'),
-            actions: [
-              TextButton(
-                child: const Text('إلغاء'),
-                onPressed: () => Navigator.of(context).pop(false),
-              ),
-              TextButton(
-                child: const Text('تسجيل خروج'),
-                onPressed: () => Navigator.of(context).pop(true),
-              ),
-            ],
-          ),
-    );
-
-    if (shouldLogout != true) return;
-
     try {
-      // حذف schoolId من SharedPreferences
+      // حذف بيانات SharedPreferences
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('schoolId');
+      await prefs.clear();
 
       // تسجيل الخروج من Firebase
       await FirebaseAuth.instance.signOut();
 
-      // عرض رسالة
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('تم تسجيل الخروج بنجاح'),
-          backgroundColor: Colors.green,
-        ),
-      );
-
-      // الانتقال إلى الصفحة الرئيسية
+      // التنقل إلى صفحة البداية
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const HomeScreen()),
         (Route<dynamic> route) => false,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mut6/providers/TeacherProvider.dart';
 import 'package:provider/provider.dart';
-import 'time_selection_screen.dart'; // استيراد صفحة تحديد الوقت
+import 'time_selection_screen.dart';
 
 class StudentsListScreen extends StatefulWidget {
   final String stage;
@@ -16,8 +16,8 @@ class StudentsListScreen extends StatefulWidget {
 
 class _StudentsListScreenState extends State<StudentsListScreen> {
   Map<String, bool> students = {};
-  bool isLoading = true; // حالة التحميل
-  String? selectedStudent; // الطالب المحدد
+  bool isLoading = true;
+  String? selectedStudent;
 
   @override
   void initState() {
@@ -27,35 +27,43 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
 
   Future<void> fetchStudents() async {
     try {
-      // استعلام Firestore للحصول على بيانات الطلاب
+      final teacherProvider = Provider.of<TeacherProvider>(
+        context,
+        listen: false,
+      );
+      final schoolId = teacherProvider.schoolId;
+
+      if (schoolId == null || schoolId.isEmpty) {
+        throw Exception("معرف المدرسة غير متوفر في بيانات المعلم");
+      }
+
       final studentSnapshot =
           await FirebaseFirestore.instance
               .collection('students')
               .where('stage', isEqualTo: widget.stage.trim())
               .where('schoolClass', isEqualTo: widget.schoolClass.trim())
+              .where('schoolId', isEqualTo: schoolId.trim()) // الفلترة المهمة
               .get();
 
-      // طباعة المستندات المسترجعة للتحقق
       print(
         "المستندات المسترجعة: ${studentSnapshot.docs.map((doc) => doc.data())}",
       );
 
       if (mounted) {
         setState(() {
-          // التحقق من وجود الحقل name في كل مستند
           students = Map.fromEntries(
             studentSnapshot.docs
                 .where((doc) => doc.data().containsKey('name'))
                 .map((doc) => MapEntry(doc['name'], false)),
           );
-          isLoading = false; // إيقاف حالة التحميل
+          isLoading = false;
         });
       }
     } catch (e) {
       print("❌ خطأ أثناء جلب بيانات الطلاب: $e");
       if (mounted) {
         setState(() {
-          isLoading = false; // إيقاف حالة التحميل في حال حدوث خطأ
+          isLoading = false;
         });
       }
     }
@@ -63,7 +71,6 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // الحصول على اسم المعلم من TeacherProvider
     final teacherProvider = Provider.of<TeacherProvider>(context);
     final teacherName = teacherProvider.teacherName ?? "غير محدد";
 
@@ -77,14 +84,12 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
         ),
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body:
           isLoading
-              ? Center(child: CircularProgressIndicator()) // عرض مؤشر التحميل
+              ? Center(child: CircularProgressIndicator())
               : Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -104,13 +109,10 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                                         value: students[key],
                                         onChanged: (bool? value) {
                                           setState(() {
-                                            // إعادة تعيين جميع الخيارات
                                             students.updateAll(
                                               (key, _) => false,
                                             );
-                                            // تحديد الطالب الجديد
                                             students[key] = value!;
-                                            // تخزين اسم الطالب المحدد
                                             selectedStudent =
                                                 students[key] == true
                                                     ? key
@@ -119,16 +121,13 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                                         },
                                         controlAffinity:
                                             ListTileControlAffinity.leading,
-                                        activeColor:
-                                            Colors
-                                                .blue, // تغيير لون المربع إلى الأزرق
+                                        activeColor: Colors.blue,
                                       );
                                     }).toList(),
                               ),
                     ),
                     MaterialButton(
                       onPressed: () async {
-                        // التحقق مما إذا تم اختيار طالب واحد على الأقل
                         if (selectedStudent == null) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -139,7 +138,6 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                           return;
                         }
 
-                        // الانتقال إلى صفحة تحديد الوقت
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -147,12 +145,11 @@ class _StudentsListScreenState extends State<StudentsListScreen> {
                                 (context) => TimeSelectionScreen(
                                   studentName: selectedStudent!,
                                   grade:
-                                      "${widget.stage} / ${widget.schoolClass}", // المرحلة والصف
+                                      "${widget.stage} / ${widget.schoolClass}",
                                 ),
                           ),
                         );
 
-                        // إعادة تعيين الطالب المحدد بعد العودة
                         setState(() {
                           students[selectedStudent!] = false;
                           selectedStudent = null;

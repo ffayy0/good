@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'select_class_screen.dart'; // استيراد صفحة اختيار الصف
 
 class ClassScreen extends StatefulWidget {
+  final String schoolId; // ✅ تعريف معلمة schoolId
+  ClassScreen({required this.schoolId}); // ✅ قبول schoolId كمعلمة
+
   @override
   _ClassScreenState createState() => _ClassScreenState();
 }
@@ -11,55 +14,44 @@ class _ClassScreenState extends State<ClassScreen> {
   String? schoolStage; // المرحلة المختارة من Firestore
   bool isLoading = true; // حالة التحميل
 
-  // دالة لجلب بيانات المدرسة من Firestore باستخدام مفتاح الوثيقة الثابت
+  @override
+  void initState() {
+    super.initState();
+    _fetchSchoolData(); // جلب بيانات المدرسة باستخدام schoolId
+  }
+
+  // دالة لجلب بيانات المدرسة من Firestore باستخدام schoolId
   Future<void> _fetchSchoolData() async {
     try {
-      // مفتاح الوثيقة الثابت (للتجربة فقط)
-      final String documentId = "mbRn2ksjlMNlTNztNXoMYcJxAco1";
-
-      // جلب بيانات المدرسة من Firestore باستخدام مفتاح الوثيقة
+      print("Fetching school data with School ID: ${widget.schoolId}");
       DocumentSnapshot doc =
           await FirebaseFirestore.instance
               .collection('schools')
-              .doc(documentId)
+              .doc(widget.schoolId)
               .get();
-
       if (!doc.exists) {
         print("❌ الوثيقة غير موجودة في Firestore.");
         throw Exception("لم يتم العثور على بيانات المدرسة");
       }
-
-      // التحقق من وجود الحقول المطلوبة
       final data = doc.data() as Map<String, dynamic>;
       if (!data.containsKey('stage')) {
         print("❌ الحقل 'stage' غير موجود في الوثيقة.");
         throw Exception("بيانات المدرسة غير مكتملة");
       }
-
-      // تحديث المرحلة
       setState(() {
         schoolStage = data['stage'];
         isLoading = false;
       });
-
       print("✅ تم جلب المرحلة بنجاح: $schoolStage");
     } catch (e) {
       print("❌ خطأ أثناء جلب بيانات المدرسة: $e");
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("حدث خطأ أثناء جلب بيانات المدرسة")),
       );
-
       setState(() {
         isLoading = false;
       });
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _fetchSchoolData();
   }
 
   @override
@@ -107,9 +99,7 @@ class _ClassScreenState extends State<ClassScreen> {
       'متوسط': ['أولى متوسط', 'ثاني متوسط', 'ثالث متوسط'],
       'ثانوي': ['أولى ثانوي', 'ثاني ثانوي', 'ثالث ثانوي'],
     };
-
     final grades = gradesMap[schoolStage] ?? [];
-
     return grades.map((grade) {
       return Column(
         children: [

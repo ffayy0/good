@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:mut6/students_execuses.dart'; // افترض أن هذا هو المسار الصحيح
+import 'package:mut6/students_execuses.dart';
 
 class AttendenceNames extends StatelessWidget {
   final String stage;
@@ -51,9 +51,8 @@ class AttendenceNames extends StatelessWidget {
                               as Map<String, dynamic>;
                       final name = student['name'];
                       final studentId = student['id'];
-                      final className =
-                          student['schoolClass'] ??
-                          "غير محدد"; // استخراج اسم الصف
+                      final className = student['schoolClass'] ?? "غير محدد";
+
                       return StreamBuilder<QuerySnapshot>(
                         stream:
                             FirebaseFirestore.instance
@@ -78,8 +77,10 @@ class AttendenceNames extends StatelessWidget {
                                       timestamp != null
                                           ? DateFormat(
                                             'yyyy-MM-dd HH:mm',
+                                            'en',
                                           ).format(timestamp.toDate())
                                           : "غير محدد";
+
                                   Color statusColor;
                                   switch (status) {
                                     case 'حضور':
@@ -94,6 +95,7 @@ class AttendenceNames extends StatelessWidget {
                                     default:
                                       statusColor = Colors.grey;
                                   }
+
                                   return Card(
                                     margin: EdgeInsets.symmetric(vertical: 8),
                                     child: ListTile(
@@ -111,15 +113,12 @@ class AttendenceNames extends StatelessWidget {
                                             CrossAxisAlignment.end,
                                         children: [
                                           Text("المرحلة: $stage"),
-                                          Text(
-                                            "الصف: $className",
-                                          ), // عرض اسم الصف هنا
+                                          Text("الصف: $className"),
                                           Text("وقت التسجيل: $formattedTime"),
                                         ],
                                       ),
                                       trailing: GestureDetector(
                                         onTap: () async {
-                                          // جلب بيانات الإعذار من Firestore
                                           final excuseSnapshot =
                                               await FirebaseFirestore.instance
                                                   .collection('student_excuses')
@@ -131,6 +130,7 @@ class AttendenceNames extends StatelessWidget {
                                                     'date',
                                                     isEqualTo: DateFormat(
                                                       'yyyy-MM-dd',
+                                                      'en', // نستخدم اللغة الإنجليزية هنا أيضًا
                                                     ).format(DateTime.now()),
                                                   )
                                                   .get();
@@ -146,17 +146,14 @@ class AttendenceNames extends StatelessWidget {
                                                     (
                                                       context,
                                                     ) => ExcuseDetailsScreen(
-                                                      studentName:
-                                                          name, // اسم الطالب
+                                                      studentName: name,
                                                       reason:
-                                                          excuseData['reason'], // السبب
-                                                      date:
-                                                          excuseData['date'], // التاريخ
+                                                          excuseData['reason'],
+                                                      date: excuseData['date'],
                                                       fileUrl:
                                                           excuseData['fileUrl'] ??
-                                                          "", // رابط الملف
-                                                      className:
-                                                          className, // اسم الصف
+                                                          "",
+                                                      className: className,
                                                     ),
                                               ),
                                             );

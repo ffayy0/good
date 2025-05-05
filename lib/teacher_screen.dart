@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:mut6/Classscreen.dart' show ClassScreen;
+import 'package:mut6/Classscreen.dart';
+import 'package:mut6/alert_screen.dart';
 import 'package:mut6/teacher_previous_requests_screen.dart';
 import 'package:mut6/widgets/teacher_custom_drawer.dart';
-import 'alert_screen.dart';
-import 'widgets/custom_button.dart'; // استيراد صفحة AlertScreen
+import 'package:shared_preferences/shared_preferences.dart'; // إضافة SharedPreferences
 
 class StudyStageScreen extends StatefulWidget {
   final Duration exitDuration; // المدة المحددة
@@ -86,6 +87,37 @@ class _StudyStageScreenState extends State<StudyStageScreen>
     }
   }
 
+  // دالة لفتح ClassScreen مع تمرير schoolId
+  Future<void> _openClassScreen(BuildContext context) async {
+    try {
+      // استرداد schoolId من SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final schoolId = prefs.getString('schoolId') ?? '';
+      if (schoolId.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("لا يمكن تحديد معرف المدرسة")));
+        return;
+      }
+      print(
+        "School ID from SharedPreferences: $schoolId",
+      ); // ✅ طباعة schoolId للتحقق
+      // تمرير schoolId إلى ClassScreen
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => ClassScreen(schoolId: schoolId), // ✅ تمرير schoolId
+        ),
+      );
+    } catch (e) {
+      print("❌ خطأ أثناء استرداد معرف المدرسة: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("حدث خطأ أثناء فتح الصفحة")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -122,12 +154,7 @@ class _StudyStageScreenState extends State<StudyStageScreen>
             SizedBox(height: 20),
             CustomButton(
               title: "طلب جديد",
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => ClassScreen()),
-                );
-              },
+              onPressed: () => _openClassScreen(context), // ✅ تعديل هنا
             ),
             SizedBox(height: 15),
             CustomButton(

@@ -22,16 +22,40 @@ class _AgentScreenState extends State<AgentScreen> {
   final TextEditingController schoolIdController = TextEditingController();
   String? errorMessage;
 
-  Future<bool> _isSchoolIdValid(String schoolId) async {
+  /// ✅ التحقق من أن schoolId موجود وفيه بيانات
+  Future<bool> _isSchoolIdExists(String schoolId) async {
     try {
-      final doc =
+      final schoolDoc =
           await FirebaseFirestore.instance
               .collection('schools')
               .doc(schoolId)
               .get();
-      return doc.exists;
+
+      return schoolDoc.exists;
     } catch (e) {
-      print("❌ خطأ أثناء التحقق من schoolId: $e");
+      print("❌ خطأ أثناء التحقق من وجود المدرسة: $e");
+      return false;
+    }
+  }
+
+  /// ✅ التحقق من أن schoolId مرتبط بهذا الموكل بالذات
+  Future<bool> _isSchoolIdLinkedToAgent(String schoolId, String agentId) async {
+    try {
+      final agentDoc =
+          await FirebaseFirestore.instance
+              .collection('Authorizations')
+              .doc(agentId)
+              .get();
+
+      if (!agentDoc.exists) {
+        print("❌ الموكل غير موجود");
+        return false;
+      }
+
+      final storedSchoolId = agentDoc.data()?['schoolId'];
+      return storedSchoolId == schoolId;
+    } catch (e) {
+      print("❌ خطأ أثناء التحقق من ارتباط المدرسة بالموكل: $e");
       return false;
     }
   }
@@ -46,14 +70,25 @@ class _AgentScreenState extends State<AgentScreen> {
       return;
     }
 
-    bool isValid = await _isSchoolIdValid(enteredId);
-    if (!isValid) {
+    // ✅ التحقق من وجود المدرسة أولًا
+    bool isSchoolExist = await _isSchoolIdExists(enteredId);
+    if (!isSchoolExist) {
       setState(() {
         errorMessage = "معرف المدرسة غير صحيح أو غير موجود";
       });
       return;
     }
 
+    // ✅ التحقق من أن المدرسة مرتبطة بالموكل
+    bool isLinked = await _isSchoolIdLinkedToAgent(enteredId, widget.agentId);
+    if (!isLinked) {
+      setState(() {
+        errorMessage = "معرف المدرسة غير مرتبط بك كموكل";
+      });
+      return;
+    }
+
+    // ✅ كل الشروط تحققت → المتابعة للشاشة التالية
     Navigator.push(
       context,
       MaterialPageRoute(

@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 import 'package:mut6/home_screen.dart';
+import 'package:mut6/providers/TeacherProvider.dart';
 
 class TeacherCustomDrawer extends StatelessWidget {
   Future<void> _signOut(BuildContext context) async {
     try {
+      // تسجيل الخروج من Firebase
       await FirebaseAuth.instance.signOut();
-      // توجيه إلى صفحة تسجيل الدخول باستخدام MaterialPageRoute
+
+      // مسح بيانات المعلم من TeacherProvider
+      final teacherProvider = context.read<TeacherProvider>();
+      teacherProvider.clearTeacherData();
+
+      // التوجيه إلى الصفحة الرئيسية
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => HomeScreen()),
@@ -25,18 +33,13 @@ class TeacherCustomDrawer extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // مسافة صغيرة في الأعلى لتجنب أن يكون الخيار في أعلى الشاشة مباشرةً
           const SizedBox(height: 70),
-
-          // خيار تسجيل الخروج في الأعلى ولكن مع مسافة
           drawerItem(
             title: "تسجيل خروج",
             icon: Icons.logout,
             onTap: () => _signOut(context),
           ),
-
-          // يمكنك إضافة المزيد من الخيارات هنا إذا كنت بحاجة
-          const SizedBox(height: 10), // مسافة صغيرة بين الخيارات
+          const SizedBox(height: 10),
         ],
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mut6/StudentCardScreen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class StudentSearchScreen extends StatefulWidget {
   const StudentSearchScreen({super.key});
@@ -11,16 +12,36 @@ class StudentSearchScreen extends StatefulWidget {
 
 class _StudentSearchScreenState extends State<StudentSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String? _schoolId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchoolId();
+  }
+
+  Future<void> _loadSchoolId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _schoolId = prefs.getString('schoolId');
+    });
+  }
 
   Future<void> _searchStudent() async {
     String studentId = _searchController.text.trim();
 
+    if (_schoolId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لم يتم تحديد معرف المدرسة')),
+      );
+      return;
+    }
+
     if (studentId.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('يرجى إدخال رقم الهوية')));
+      ).showSnackBar(const SnackBar(content: Text('يرجى إدخال رقم الهوية')));
       return;
     }
 
@@ -30,6 +51,16 @@ class _StudentSearchScreenState extends State<StudentSearchScreen> {
 
       if (studentDoc.exists) {
         final studentData = studentDoc.data()!;
+        final studentSchoolId = studentData['schoolId'];
+
+        // التحقق من أن الطالب ينتمي إلى نفس المدرسة
+        if (studentSchoolId != _schoolId) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('هذا الطالب لا ينتمي إلى مدرستك')),
+          );
+          return;
+        }
+
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -49,15 +80,15 @@ class _StudentSearchScreenState extends State<StudentSearchScreen> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('لم يتم العثور على الطالب')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لم يتم العثور على الطالب')),
+        );
       }
     } catch (e) {
       print("❌ خطأ أثناء البحث عن الطالب: $e");
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء البحث')));
+      ).showSnackBar(const SnackBar(content: Text('حدث خطأ أثناء البحث')));
     }
   }
 
@@ -68,6 +99,10 @@ class _StudentSearchScreenState extends State<StudentSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_schoolId == null) {
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(

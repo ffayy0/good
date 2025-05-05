@@ -115,9 +115,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (password.isEmpty ||
         password.length < 8 ||
         password.length > 10 ||
-        !RegExp(r'^\S{8,10}$').hasMatch(password)) {
+        !RegExp(
+          r'^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d]{8,10}$',
+        ).hasMatch(password)) {
       _showSnackBar(
-        'كلمة المرور يجب أن تحتوي على أي رموز أو حروف أو أرقام بطول من 8 إلى 10 أحرف.',
+        'كلمة المرور يجب أن تحتوي على حروف (كبيرة وصغيرة) وأرقام، وبطول من 8 إلى 10 أحرف.',
       );
       return;
     }

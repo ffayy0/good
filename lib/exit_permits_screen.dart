@@ -1,228 +1,183 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+//تصاريخ الخروج عند الاداري
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
+import 'RequestDetailsScreen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class RequestDetailsScreen extends StatelessWidget {
-  final QueryDocumentSnapshot request;
-  final String studentName;
-  final String grade;
-  final String stage;
-  final String schoolClass;
-  final String schoolId;
+class ExitPermitsScreen extends StatelessWidget {
+  static final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  String? _schoolId;
 
-  const RequestDetailsScreen({
-    Key? key,
-    required this.request,
-    required this.studentName,
-    required this.grade,
-    required this.stage,
-    required this.schoolClass,
-    required this.schoolId,
-  }) : super(key: key);
+  // دالة لاسترداد معرف المدرسة
+  Future<void> _loadSchoolId() async {
+    final prefs = await SharedPreferences.getInstance();
+    _schoolId = prefs.getString('schoolId');
+  }
 
   @override
   Widget build(BuildContext context) {
-    final data = request.data() as Map<String, dynamic>;
-
-    final reason = data['reason'] ?? 'غير محدد';
-    final date = data['date'] ?? 'غير محدد';
-    final time = data['time'] ?? 'غير محدد';
-    final attachedFileUrl = data['attachedFileUrl'];
+    // استدعاء الدالة لتحميل معرف المدرسة
+    _loadSchoolId();
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.green,
-        title: const Text(
-          "تفاصيل الطلب",
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          "تصاريح الخروج من الحصة",
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "الطالبة:",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(studentName, textAlign: TextAlign.right),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "الصف:",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    grade.isNotEmpty ? grade : 'غير محدد',
-                    textAlign: TextAlign.right,
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "سبب الاستئذان:",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(reason, textAlign: TextAlign.right),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "وقت الاستئذان:",
-                    style: TextStyle(
-                      color: Colors.blue,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(time, textAlign: TextAlign.right),
-                ],
-              ),
-            ),
-            if (attachedFileUrl != null && attachedFileUrl.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () async {
-                  try {
-                    final uri = Uri.parse(attachedFileUrl);
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri);
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("لا يمكن فتح الرابط")),
-                      );
-                    }
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("حدث خطأ أثناء فتح الملف")),
-                    );
-                  }
-                },
-                child: const Text(
-                  "عرض الملف",
-                  style: TextStyle(color: Colors.blue),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[200],
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ] else ...[
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("لا يوجد ملف لعرضه")),
+        padding: const EdgeInsets.all(16.0),
+        child: FutureBuilder(
+          future: _loadSchoolId(),
+          builder: (context, snapshot) {
+            if (_schoolId == null) {
+              return Center(child: CircularProgressIndicator());
+            }
+            return StreamBuilder<QuerySnapshot>(
+              stream:
+                  firestore
+                      .collection('requests') // استخدام نفس المجموعة عند الحفظ
+                      .where(
+                        'status',
+                        isEqualTo: 'active',
+                      ) // عرض الطلبات النشطة فقط
+                      .where(
+                        'schoolId',
+                        isEqualTo: _schoolId,
+                      ) // تصفية الطلبات حسب المدرسة
+                      .orderBy(
+                        'exitTime',
+                        descending: true,
+                      ) // ترتيب الطلبات حسب وقت الخروج
+                      .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text("خطأ: ${snapshot.error.toString()}"),
                   );
-                },
-                child: const Text(
-                  "عرض الملف",
-                  style: TextStyle(color: Colors.blue),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[200],
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _handleDecision(context, 'accepted'),
-                    child: const Text(
-                      "قبول",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                final requests = snapshot.data!.docs;
+                if (requests.isEmpty) {
+                  return Center(
+                    child: Text(
+                      "لا توجد تصاريح نشطة حتى الآن.",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _handleDecision(context, 'rejected'),
-                    child: const Text(
-                      "رفض",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  );
+                }
+                return ListView.builder(
+                  itemCount: requests.length,
+                  itemBuilder: (context, index) {
+                    final request = requests[index];
+                    final data = request.data() as Map<String, dynamic>;
+                    final exitTime = (data['exitTime'] as Timestamp).toDate();
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => RequestDetailsScreen(
+                                  studentName: data['studentName'],
+                                  grade: data['grade'],
+                                  teacherName: data['teacherName'],
+                                  exitTime: DateFormat(
+                                    'yyyy-MM-dd – HH:mm',
+                                  ).format(exitTime),
+                                  requestId: request.id, // تمرير معرف الطلب
+                                ),
+                          ),
+                        );
+                      },
+                      child: Card(
+                        elevation: 4,
+                        margin: EdgeInsets.only(bottom: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "الطالب: ${data['studentName']}",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                "الصف: ${data['grade']}",
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                "المعلم: ${data['teacherName']}",
+                                style: TextStyle(fontSize: 14),
+                              ),
+                              SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "وقت الخروج: ${DateFormat('hh:mm a').format(exitTime)}",
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                  IconButton(
+                                    icon: Icon(Icons.delete, color: Colors.red),
+                                    onPressed: () async {
+                                      await _deleteRequest(request.id);
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text("تم حذف الطلب بنجاح."),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
       ),
     );
   }
 
-  Future<void> _handleDecision(BuildContext context, String decision) async {
+  // دالة لحذف الطلب
+  Future<void> _deleteRequest(String requestId) async {
     try {
-      // تحديث الحالة في Firestore
-      await FirebaseFirestore.instance
-          .collection('exitPermits') // اسم الكولكشن الذي يحتوي الطلبات
-          .doc(request.id)
-          .update({
-            'status':
-                decision == 'accepted'
-                    ? 'completed'
-                    : 'rejected', // تحديث الحالة
-            'decision': decision, // إضافة قرار القبول أو الرفض
-            'timestamp': FieldValue.serverTimestamp(), // إضافة ختم زمني
-          });
-
-      // إشعار للمستخدم بنجاح العملية
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            decision == 'accepted' ? "تم قبول الطلب" : "تم رفض الطلب",
-          ),
-        ),
-      );
-
-      // العودة إلى الصفحة السابقة
-      Navigator.pop(context);
+      await firestore.collection('requests').doc(requestId).delete();
+      print("✅ تم حذف الطلب بنجاح.");
     } catch (e) {
-      // عرض رسالة خطأ إذا حدثت مشكلة
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("حدث خطأ أثناء معالجة الطلب")),
-      );
+      print("❌ خطأ أثناء حذف الطلب: $e");
+      rethrow;
     }
   }
 }

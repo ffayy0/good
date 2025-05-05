@@ -1,5 +1,6 @@
-import 'package:firebase_core/firebase_core.dart'; // استيراد Firebase Core
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:mut6/MapScreen.dart';
 import 'package:mut6/SchoolDashboardScreen.dart';
 import 'package:mut6/WelcomeScreen.dart';
@@ -10,12 +11,11 @@ import 'package:mut6/map_picker_screen.dart';
 import 'package:mut6/modifyAdminScreen.dart';
 import 'package:mut6/provider.dart';
 import 'package:mut6/providers/TeacherProvider.dart';
-import 'package:provider/provider.dart'; // تأكد من استيراد شاشة إدارة المشرفين إذا كنت تستخدمها
+import 'package:provider/provider.dart';
 
 void main() async {
-  // تهيئة Widgets وFirebase
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // تهيئة Firebase
+  await Firebase.initializeApp();
   runApp(
     MultiProvider(
       providers: [
@@ -34,20 +34,23 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Mutabie App', // اسم التطبيق
-      initialRoute: '/', // المسار المبدئي للتطبيق
+      title: 'Mutabie App',
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ar', 'SA'), Locale('en', 'US')],
+      initialRoute: '/',
       routes: {
-        '/': (context) => const WelcomeScreen(), // شاشة الترحيب
-        '/login': (context) => LoginSchoolScreen(), // شاشة تسجيل الدخول
-        '/AddAdminScreen': (context) => AddAdminScreen(), // شاشة إضافة مشرف
-        '/AdminScreen': (context) => AdminListScreen(), // شاشة قائمة المشرفين
-        '/MapScreen': (context) => MapScreen(), // إذا كنت تستخدم شاشة الخريطة
-        '/SchoolDashboardScreen':
-            (context) => SchoolDashboardScreen(), // إذا كنت تستخدم شاشة الخريطة
+        '/': (context) => const WelcomeScreen(),
+        '/login': (context) => LoginSchoolScreen(),
+        '/AddAdminScreen': (context) => AddAdminScreen(),
+        '/AdminScreen': (context) => AdminListScreen(),
+        '/MapScreen': (context) => MapScreen(),
+        '/SchoolDashboardScreen': (context) => SchoolDashboardScreen(),
         '/map_picker': (context) => MapPickerScreen(),
         '/home': (context) => HomeScreen(),
-
-        // يمكنك إضافة أي مسارات أخرى إذا كنت بحاجة إليها
       },
     );
   }

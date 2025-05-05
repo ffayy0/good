@@ -23,6 +23,7 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
 
   List<Map<String, dynamic>> allStudents = [];
   List<Map<String, dynamic>> selectedStudents = [];
+
   String? _schoolId;
 
   @override
@@ -130,18 +131,18 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
           ..recipients.add(recipientEmail)
           ..subject = "بيانات الدخول - تطبيق متابع"
           ..html = """
-      <html dir="rtl">
-        <body style="font-family: Arial;">
-          <h3>مرحبًا $agentName،</h3>
-          <p>تم تسجيلك كموكل في <strong>تطبيق متابع</strong>.</p>
-          <p><strong>رقم الهوية:</strong> $agentId</p>
-          <p><strong>الرقم السري:</strong> $password</p>
-          <p><strong>معرف المدرسة:</strong> $schoolId</p>
-          <p>يرجى الاحتفاظ بهذه المعلومات وعدم مشاركتها.</p>
-          <p>تحياتنا،<br>فريق متابع</p>
-        </body>
-      </html>
-      """;
+    <html dir="rtl">
+      <body style="font-family: Arial;">
+        <h3>مرحبًا $agentName،</h3>
+        <p>تم تسجيلك كموكل في <strong>تطبيق متابع</strong>.</p>
+        <p><strong>رقم الهوية:</strong> $agentId</p>
+        <p><strong>الرقم السري:</strong> $password</p>
+        <p><strong>معرف المدرسة:</strong> $schoolId</p>
+        <p>يرجى الاحتفاظ بهذه المعلومات وعدم مشاركتها.</p>
+        <p>تحياتنا،<br>فريق متابع</p>
+      </body>
+    </html>
+    """;
 
     try {
       await send(message, smtpServer);
@@ -156,6 +157,7 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
     final id = idController.text.trim();
     final email = emailController.text.trim();
 
+    // ✅ التحقق من اسم الموكل
     if (name.isEmpty || !name.contains(" ")) {
       ScaffoldMessenger.of(
         context,
@@ -163,13 +165,15 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
       return false;
     }
 
-    if (id.isEmpty || int.tryParse(id) == null || id.length < 8) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("يرجى إدخال رقم هوية صالح")));
+    // ✅ التحقق من رقم الهوية (10 أرقام فقط)
+    if (id.isEmpty || !RegExp(r'^\d{10}$').hasMatch(id)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("رقم الهوية يجب أن يتكون من 10 أرقام فقط")),
+      );
       return false;
     }
 
+    // ✅ التحقق من توفر الرقم
     final isIdAvailable = await _isIdAvailable(id);
     if (!isIdAvailable) {
       ScaffoldMessenger.of(
@@ -178,18 +182,28 @@ class _AuthorizationScreenState extends State<AuthorizationScreen> {
       return false;
     }
 
-    if (!email.contains('@')) {
+    // ✅ التحقق من البريد الإلكتروني (بصيغة صحيحة)
+    final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(email)) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("يرجى إدخال بريد إلكتروني صالح")));
+      ).showSnackBar(SnackBar(content: Text("يرجى إدخال بريد إلكتروني صحيح")));
       return false;
     }
 
+    // ✅ التحقق من وجود schoolId
     if (_schoolId == null || _schoolId!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("لم يتم تحديد معرف المدرسة. لا يمكن تسجيل الموكل"),
         ),
+      );
+      return false;
+    }
+    // ✅ التحقق من اختيار طالب واحد على الأقل
+    if (selectedStudents.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("يرجى اختيار طالب واحد على الأقل قبل التسجيل")),
       );
       return false;
     }

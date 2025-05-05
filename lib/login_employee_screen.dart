@@ -97,20 +97,29 @@ class _LoginEmployeeScreenState extends State<LoginEmployeeScreen> {
     );
 
     Widget nextScreen;
+
     if (role == "admin") {
-      // حفظ schoolId في SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('schoolId', userData['schoolId']);
-
       nextScreen = const AdminScreen();
     } else {
       final teacherProvider = Provider.of<TeacherProvider>(
         context,
         listen: false,
       );
-      teacherProvider.setTeacherData(userData['id'], userData['name']);
+
+      teacherProvider.setTeacherData(
+        userData['id'],
+        userData['name'],
+        userData['schoolId'],
+      );
+
+      // ✅ حفظ schoolId للمعلم
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('schoolId', userData['schoolId']);
 
       int exitMinutes = userData['exitDuration'] ?? 10;
+
       nextScreen = StudyStageScreen(
         exitDuration: Duration(minutes: exitMinutes),
       );

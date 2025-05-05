@@ -2,9 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:mut6/providers/TeacherProvider.dart';
-
 import 'package:mut6/teacher_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TimeSelectionScreen extends StatefulWidget {
   final String studentName;
@@ -20,6 +20,20 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
   bool isTenMinutesSelected = false;
   bool isOtherSelected = false;
   Duration selectedDuration = Duration(minutes: 3); // المدة الافتراضية
+  String? _schoolId; // لإضافة معرف المدرسة
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchoolId(); // استدعاء الدالة لتحميل معرف المدرسة
+  }
+
+  Future<void> _loadSchoolId() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _schoolId = prefs.getString('schoolId'); // استرداد معرف المدرسة
+    });
+  }
 
   void _showTimerPicker(BuildContext context) {
     showModalBottomSheet(
@@ -139,11 +153,33 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
                     return;
                   }
 
+                  // التحقق من أن المدة ليست أقل من دقيقتين
+                  if (selectedDuration < Duration(minutes: 2)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("لا يمكن اختيار مدة أقل من دقيقتين"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  // التحقق من توفر schoolId
+                  if (_schoolId == null || _schoolId!.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("لم يتم تحديد معرف المدرسة"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
                   // حساب وقت الخروج بناءً على الوقت الحالي والمدة المحددة
                   DateTime now = DateTime.now();
                   DateTime exitTime = now.add(selectedDuration);
 
-                  // إضافة الطلب إلى Firestore
+                  // إضافة الطلب إلى Firestore مع إضافة schoolId
                   await FirebaseFirestore.instance.collection('requests').add({
                     'studentName': widget.studentName,
                     'grade': widget.grade,
@@ -152,6 +188,7 @@ class _TimeSelectionScreenState extends State<TimeSelectionScreen> {
                       exitTime,
                     ), // تخزين الوقت كـ Timestamp
                     'status': 'active', // الحالة الافتراضية للطلب
+                    'schoolId': _schoolId, // إضافة معرف المدرسة
                   });
 
                   // التنقل إلى الصفحة الرئيسية مع تمرير المدة المحددة

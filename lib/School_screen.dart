@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // أضف هذا السطر
 import 'package:mut6/RequestsListScreen.dart';
 import 'widgets/custom_button_auth.dart';
 
@@ -7,8 +8,14 @@ class SchoolScreen extends StatelessWidget {
 
   const SchoolScreen({Key? key, required this.schoolName}) : super(key: key);
 
-  void _logout(BuildContext context) {
+  Future<void> _logout(BuildContext context) async {
+    // امسح بيانات التخزين المحلي
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // يمسح schoolId وأي بيانات ثانية محفوظة
+
     print("تم تسجيل الخروج بنجاح");
+
+    // الانتقال إلى شاشة البداية
     Navigator.pushReplacementNamed(context, '/home');
   }
 
@@ -28,7 +35,7 @@ class SchoolScreen extends StatelessWidget {
                   children: [
                     GestureDetector(
                       onTap: () {
-                        _logout(context);
+                        _logout(context); // استخدم الدالة المحدثة
                       },
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -87,7 +94,6 @@ class SchoolScreen extends StatelessWidget {
                     },
                   ),
                   const SizedBox(height: 35),
-                  // زر جديد لعرض طلبات النداء
                   CustomButtonAuth(
                     title: "طلبات النداء",
                     onPressed: () {

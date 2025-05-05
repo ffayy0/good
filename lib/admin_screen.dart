@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mut6/AdminAttendanceViewer.dart';
 import 'package:mut6/Permission_screen.dart';
-import 'package:mut6/admin_previous_requests_screen.dart';
-import 'package:mut6/exit_request_details_screen.dart';
+import 'package:mut6/exit_permits_screen.dart';
+import 'package:mut6/teacher_previous_requests_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../widgets/custom_button.dart';
 import '../widgets/custom_drawer.dart';
 
@@ -73,10 +74,27 @@ class AdminScreen extends StatelessWidget {
               const SizedBox(height: 70),
               CustomButton(
                 title: "طلبات الاستئذان",
-                onPressed: () {
+                onPressed: () async {
+                  // استرداد schoolId من SharedPreferences
+                  final prefs = await SharedPreferences.getInstance();
+                  final schoolId = prefs.getString('schoolId') ?? '';
+
+                  if (schoolId.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("لا يمكن تحديد معرف المدرسة"),
+                      ),
+                    );
+                    return;
+                  }
+
+                  // تمرير schoolId إلى PermissionScreen
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => PermissionScreen()),
+                    MaterialPageRoute(
+                      builder:
+                          (context) => PermissionScreen(schoolId: schoolId),
+                    ),
                   );
                 },
               ),
@@ -97,7 +115,6 @@ class AdminScreen extends StatelessWidget {
                 title: "حضور الطلاب",
                 onPressed: () => _openAttendanceViewer(context),
               ),
-
               const SizedBox(height: 35),
               CustomButton(
                 title: "الطلبات السابقة",
